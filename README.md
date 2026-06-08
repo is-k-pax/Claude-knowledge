@@ -5,6 +5,8 @@ Base de conocimiento acumulado trabajando con Claude en proyectos de audiovisual
 **Mantenido por:** vuski / is-k-pax  
 **Última revisión:** junio 2026
 
+> ✅ Este repo es editable directamente por Claude via GitHub MCP. Última edición automática: 8 junio 2026.
+
 ---
 
 ## Cómo usar este repo
