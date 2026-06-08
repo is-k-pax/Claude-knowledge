@@ -417,7 +417,7 @@ Reseteable: op('.../watcher').unstore('*')
 Esto generaliza el patrón ya mencionado en 6.6 para re-entrancia. Si un DAT execute "olvida" lo que sabía entre disparos, casi siempre es porque el estado vivía en variables de módulo que se perdieron.
  
 7 · Cuándo usar Claude Code
-Tarea¿Claude Code?Agente principal de la aplicación en producción❌ NO. Caro por suscripción. Usa Agent LOP + API Anthropic directoEvaluación rutinaria de un agente❌ NO. Usa tu propio MCP a TD (este Claude que está leyendo)Crear un Tool nuevo simple❌ NO. Hazlo tú via execute_pythonRefactor grande de una sub-red TD✅ Sí, una sesión one-shotScript de migración de datos / scaffold de N operadores✅ SíTool compleja que requiere browsing del filesystem + bash✅ Sí (lidar coordinate selection, generación de assets, etc.)Generación de código que el usuario va a revisar antes de usar✅ Sí
+TareaAgente principal de la aplicación en producción❌ NO. Caro por suscripción. Usa Agent LOP + API Anthropic directoEvaluación rutinaria de un agente❌ NO. Usa tu propio MCP a TD (este Claude que está leyendo)Crear un Tool nuevo simple❌ NO. Hazlo tú via execute_pythonRefactor grande de una sub-red TD✅ Sí, una sesión one-shotScript de migración de datos / scaffold de N operadores✅ SíTool compleja que requiere browsing del filesystem + bash✅ Sí (lidar coordinate selection, generación de assets, etc.)Generación de código que el usuario va a revisar antes de usar✅ Sí
 Antes de invocar Claude Code, pregunta:
  
 ¿La tarea cabe en una sesión one-shot (≤30 min) o necesita supervisión continua?
@@ -638,3 +638,5 @@ dotsimulate Discord: soporte de comunidad para el pack LOPs
  
 11 · Fin
 Este documento es vivo. Si descubres algo nuevo trabajando en un proyecto LOPs, pide al usuario que lo añada aquí antes de cerrar la sesión. La próxima instancia de Claude te lo agradecerá.
+
+testeado cambio en github
