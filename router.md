@@ -20,6 +20,7 @@
 | Situación | Lee primero |
 |---|---|
 | Trabajar con Figma via MCP | figma/figma_onboarding.md |
+| Exportar assets de Figma a disco | figma/figma_export.md |
 | Algo falla con Figma | figma/figma_pitfalls.md |
 
 ### Resolume
