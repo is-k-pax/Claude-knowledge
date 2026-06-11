@@ -2,7 +2,7 @@
 
 Errores y trampas descubiertas trabajando con TD y LOPs. Antes de asumir que tu código está mal, revisa esta lista.
 
-**Última revisión:** 8 de junio de 2026.
+**Última revisión:** junio 2026.
 
 ---
 
@@ -93,3 +93,16 @@ def onTableChange(dat):
         pass  # procesar filas nuevas
     me.store(key, cur)
 ```
+
+## ⚠️ webrenderTOP scroll: anti-patrones que NO funcionan
+
+Cuando un `webrenderTOP` es el background de un `containerCOMP`, el scroll y los clicks NO se reenvían automáticamente al navegador CEF.
+
+**Lo que NO funciona:**
+
+- **`panelCHOP` + `chopexecuteDAT` calculando deltas del canal `wheel`**: el canal `wheel` es un pulso 0/1, no un float acumulativo. El delta siempre es ±1 y pierde la semántica de scroll.
+- **Listeners JS tipo `addEventListener('wheel')` en el HTML**: no reciben eventos del container TD.
+- **`sessionStorage` restore con `setTimeout` en el HTML**: lucha con el scroll del usuario y resetea la posición inesperadamente.
+- **Confiar en que el container reenvía eventos al webrender por defecto**: no lo hace.
+
+**Lo que SÍ funciona:** un `panelexecDAT` que vigila `lselect mselect rselect wheel insideu insidev` con `valuechange=True` y llama `web.interactMouse()` directamente. Ver snippet en td_snippets.md.
