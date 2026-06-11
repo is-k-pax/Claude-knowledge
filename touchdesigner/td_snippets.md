@@ -251,3 +251,37 @@ def onValueChange(par, prev):
     watcher.par.dat = new_path
     watcher.store("prev_rows__" + new_path, op(new_path).numRows)
 ```
+
+---
+
+## Scroll e interaccion de raton en webrenderTOP usado como panel
+
+**Cuando:** tienes un `webrenderTOP` como background de un `containerCOMP` y necesitas que el scroll y los clicks del usuario lleguen al navegador CEF. No se reenvian automaticamente — hay que crear un `panelexecDAT` dentro del container.
+
+**Configuracion del panelexecDAT:**
+- `panelvalue` = `lselect mselect rselect wheel insideu insidev`
+- `valuechange` = True
+
+```python
+# panelexecDAT — unico patron fiable
+def onValueChange(panelValue):
+    p = panelValue.owner.panel
+    op('web1').interactMouse(
+        p.insideu, p.insidev,
+        left=bool(p.lselect), middle=bool(p.mselect),
+        right=bool(p.rselect), wheel=p.wheel
+    )
+```
+
+Lee los valores directamente de `panelValue.owner.panel` en cada disparo. No calcules deltas — pasa el estado instantaneo.
+
+**Actualizaciones dinamicas de la UI desde TD (sin interaccion del usuario):**
+
+```python
+# Unidireccional TD->web, ligero
+op('web1').executeJavaScript("miFuncion(args)")
+```
+
+No usar `sessionStorage` restore con `setTimeout` para esto — lucha con el scroll del usuario.
+
+> Anti-patrones documentados en td_pitfalls.md (seccion webrenderTOP scroll).
