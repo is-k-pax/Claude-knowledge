@@ -137,3 +137,117 @@ else:
 # Verificar que aparece en el schema del tool
 print(op('/project1/tool_td_mod1').GetTool()['tool_definition']['function']['parameters']['properties']['args']['description'])
 ```
+
+---
+
+## Auto-conectar un servicio externo al abrir el .toe
+
+**Cuando:** para LOPs con bridges o conexiones externas (claude_codeLOP, MCP servers, sockets) que no se conectan solos al cargar el proyecto. Un executeDAT con start=True lanza el handshake automaticamente. Es idempotente: si ya esta conectado, el pulse no hace nada.
+
+```python
+s = op('/project1').create(executeDAT, 'startup_<servicio>')
+s.par.language = 'python'
+s.par.start = True   # CRITICO: dispara onStart al cargar el .toe
+s.par.active = True
+
+s.text = '''
+def onStart():
+    try:
+        target = op("/project1/<operador_a_conectar>")
+        if not target:
+            return
+        if hasattr(target.par, "Connected") and target.par.Connected.eval():
+            print("[startup] ya estaba conectado")
+            return
+        target.par.Connect.pulse()
+        print("[startup] conectado")
+    except Exception as e:
+        print(f"[startup] error: {e}")
+
+def onCreate(): pass
+def onExit(): pass
+def onFrameStart(frame): pass
+def onFrameEnd(frame): pass
+def onPlayStateChange(state): pass
+def onDeviceChange(): pass
+def onProjectPreSave(): pass
+def onProjectPostSave(): pass
+'''
+```
+
+Generalizable a cualquier handshake de arranque: cargar caches, inicializar workers, restablecer suscripciones.
+
+---
+
+## Watcher event-driven sobre un DAT de log
+
+**Cuando:** para vigilar una tabla que crece monotonicamente (como un log) y reaccionar SOLO a filas nuevas que cumplan un criterio. Usa me.storage para persistir el estado entre disparos.
+
+> ATENCION al testear: los appendRow desde el MCP no disparan los callbacks de este watcher
+> (ver td_pitfalls.md seccion callbacks datexecuteDAT). Para validar, lanza una operacion
+> real del operador que normalmente escribe en el log, o invoca el callback directamente.
+
+```python
+w = op('/project1').create(datexecuteDAT, '<nombre>_watcher')
+w.par.language = 'python'
+w.par.dat = '/ruta/al/log_dat'
+w.par.tablechange = True
+w.par.sizechange = True
+w.par.rowchange = True
+w.par.active = True
+
+w.text = '''
+def _process_new_rows(dat, n_old, n_new):
+    target_col = -1
+    for c in range(dat.numCols):
+        if str(dat[0, c].val) == "<columna_filtro>":
+            target_col = c
+            break
+    if target_col < 0:
+        return
+    for r in range(n_old, n_new):
+        try:
+            valor = str(dat[r, target_col].val)
+        except Exception:
+            continue
+        if valor == "<valor_que_buscamos>":
+            try:
+                mod = op("/project1/tu_modulo").module
+                mod.on_event(r, dat)
+            except Exception as e:
+                print(f"[watcher] error: {e}")
+
+def _check(dat):
+    if not dat:
+        return
+    key = "prev_rows__" + dat.path
+    prev = me.fetch(key, None)
+    cur = dat.numRows
+    if prev is None:
+        me.store(key, cur)
+        return
+    if cur > prev:
+        _process_new_rows(dat, prev, cur)
+    me.store(key, cur)
+
+def onTableChange(dat): _check(dat)
+def onRowChange(dat, rows): _check(dat)
+def onSizeChange(dat): _check(dat)
+def onCellChange(dat, cells, prev): pass
+def onColChange(dat, cols): pass
+'''
+
+# Inicializar contador para no procesar el historico existente
+target = op(w.par.dat.eval())
+w.store('prev_rows__' + target.path, target.numRows)
+```
+
+Para repuntar el watcher si el DAT objetivo cambia de ruta:
+
+```python
+def onValueChange(par, prev):
+    new_path = "/nueva/ruta/calculada"
+    watcher = op("/project1/<nombre>_watcher")
+    watcher.par.dat = new_path
+    watcher.store("prev_rows__" + new_path, op(new_path).numRows)
+```
