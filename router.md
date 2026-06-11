@@ -6,34 +6,75 @@
 
 ## Qué documento leer según la situación
 
+### TouchDesigner
 | Situación | Lee primero | Luego si necesitas más |
 |---|---|---|
-| Entro a un proyecto TouchDesigner | `touchdesigner/td_onboarding.md` | `touchdesigner/td_lops_catalog.md` |
-| Necesito código TD reutilizable | `touchdesigner/td_snippets.md` | — |
-| Algo falla en TD o LOPs | `touchdesigner/td_pitfalls.md` | — |
-| Me piden crear un tool nuevo para un agente | `touchdesigner/td_tool_creation.md` | — |
-| Me planteo usar Claude Code LOP | `touchdesigner/td_claude_code.md` | — |
-| Me piden un shader GLSL en TD | `touchdesigner/glsl/glsl_fundamentals.md` | `touchdesigner/glsl/glsl_patterns.md` |
-| Problema de MCP (timeout, conexión, SHA) | `general/mcp_troubleshooting.md` | — |
-| Entro a Resolume | `resolume/resolume_onboarding.md` | — |
-| Entro a Ableton | `ableton/ableton_onboarding.md` | — |
-| Entro a ComfyUI | `comfyui/comfyui_onboarding.md` | — |
+| Entro a un proyecto TD | touchdesigner/td_onboarding.md | touchdesigner/td_lops_catalog.md |
+| Necesito código TD reutilizable | touchdesigner/td_snippets.md | — |
+| Algo falla en TD o LOPs | touchdesigner/td_pitfalls.md | — |
+| Crear un tool nuevo para un agente | touchdesigner/td_tool_creation.md | — |
+| Usar Claude Code LOP | touchdesigner/td_claude_code.md | — |
+| Shader GLSL en TD | touchdesigner/glsl/glsl_fundamentals.md | touchdesigner/glsl/glsl_patterns.md |
+
+### Figma
+| Situación | Lee primero |
+|---|---|
+| Trabajar con Figma via MCP | figma/figma_onboarding.md |
+| Algo falla con Figma | figma/figma_pitfalls.md |
+
+### Resolume
+| Situación | Lee primero |
+|---|---|
+| Entro a Resolume | resolume/resolume_onboarding.md |
+
+### Ableton
+| Situación | Lee primero |
+|---|---|
+| Entro a Ableton | ableton/ableton_onboarding.md |
+
+### General
+| Situación | Lee primero |
+|---|---|
+| Problema de MCP (timeout, conexión) | general/mcp_troubleshooting.md |
 
 ---
 
-## Cuando descubras algo nuevo trabajando
+## Dónde guardar lo que aprendo
 
-1. Decide la categoría: ¿es un pitfall? ¿un snippet? ¿un workflow? ¿conocimiento nuevo?
-2. Lee el documento correspondiente del repo via GitHub MCP — **nunca edites desde memoria**
-3. Añade la sección nueva siguiendo el formato que ya tiene el documento
-4. Haz commit con mensaje: `[carpeta] acción breve`
+Cuando descubras algo nuevo durante una sesión, clasifícalo así:
 
----
+### ¿Qué tipo de conocimiento es?
 
-## Reglas del repo
+**Un error y su solución** → `<programa>/pitfalls.md`
+Formato: título descriptivo, síntoma, causa, fix.
 
-1. **Leer antes de editar.** Siempre hacer `get_file_contents` del archivo antes de modificarlo.
-2. **Archivos < 10KB.** Si uno crece más, propón al usuario dividirlo.
-3. **Commits:** formato `[carpeta] acción breve` (ej: `[touchdesigner] añade pitfall sobre timeout de MCP`)
-4. **Cero datos personales.** Nada de nombres de usuario, rutas locales (`C:\Users\...`), tokens ni contraseñas. El repo es público.
-5. **Un archivo por commit.** `push_files` con múltiples archivos falla con payloads grandes.
+**Código reutilizable** → `<programa>/snippets.md`
+Formato: título de lo que hace, cuándo usarlo, código mínimo.
+
+**Cómo conectar o configurar una herramienta** → `<programa>/onboarding.md`
+Añadir a la sección relevante del onboarding existente.
+
+**Un workflow o pipeline completo** → `<programa>/workflows.md`
+Crear si no existe. Formato: qué resuelve, pasos, código si aplica.
+
+**Conocimiento específico de un tema** → archivo dedicado
+Ejemplo: todo sobre STT → `touchdesigner/td_stt.md`
+Ejemplo: exportar assets de Figma → `figma/figma_export.md`
+Solo crear archivo nuevo si el tema es lo bastante grande (>1KB) y distinto.
+
+### ¿Es universal o del proyecto actual?
+
+**Universal** (serviría en otro proyecto) → va al repo.
+**Específico del proyecto** (configuración particular, operadores concretos de este proyecto) → NO va al repo, se queda en el MASTER.md del proyecto.
+
+### Procedimiento
+
+1. Identificar categoría y programa
+2. Leer el archivo destino con github:get_file_contents
+3. Añadir al final de la sección relevante
+4. Verificar que no hay datos personales ni rutas locales
+5. Commit: `[carpeta] acción breve`
+
+### Si el programa no tiene carpeta todavía
+
+Crear la carpeta con un `onboarding.md` mínimo:
