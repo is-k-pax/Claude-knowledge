@@ -1,6 +1,6 @@
-# TouchDesigner - Claude Code LOP
+# TouchDesigner — Cuando y como usar Claude Code LOP
 
-Cuando usar (y cuando NO usar) el operador claude_codeLOP en proyectos TD.
+Guia de decision para usar Claude Code LOP vs otras opciones.
 
 **Ultima revision:** junio 2026.
 
@@ -29,10 +29,13 @@ COSTE: consume el cap de suscripcion Pro/Max del usuario. El bridge log muestra 
 | Tool compleja que requiere browsing del filesystem + bash | SI (lidar, generacion de assets, etc.) |
 | Generacion de codigo que el usuario va a revisar antes de usar | SI |
 
-Antes de invocar, hazte estas preguntas:
-- La tarea cabe en una sesion one-shot (menos de 30 min) o necesita supervision continua?
-- El usuario esta OK con consumir su cap de suscripcion?
-- Puedes hacerla tu directamente con execute_python en menos tiempo?
+---
+
+## Checklist: 3 preguntas antes de invocar
+
+1. La tarea cabe en una sesion one-shot (menos de 30 min) o necesita supervision continua?
+2. El usuario esta OK con consumir su cap de suscripcion?
+3. Puedes hacerla tu directamente con execute_python en menos tiempo?
 
 Si las respuestas son si/si/no, adelante. Si una es no, no uses Claude Code.
 
@@ -69,14 +72,3 @@ con un prompt complejo, probablemente se ha colgado.
 Necesita `Connect.pulse()` o `Launchbridge.pulse()` al abrir el proyecto.
 Ver td_snippets.md (snippet "Auto-conectar un servicio externo") para
 automatizarlo con un executeDAT startup.
-
----
-
-## Checklist antes de invocar
-
-- [ ] La tarea es one-shot y acotada (no necesita supervision continua)
-- [ ] Usuario informado del coste de suscripcion
-- [ ] Permissionmode configurado segun el contexto
-- [ ] Workingdir apuntando a un repo, no al .toe folder
-- [ ] bridge_log visible para monitorizar progreso
-- [ ] Plan de contingencia si el bridge se cuelga (Launchbridge.pulse())
