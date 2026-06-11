@@ -83,3 +83,57 @@ ag.par.Costbudget = 0.05  # 5 centimos maximo por query
 ag.par.Resetcostmeter.pulse()
 # Lanza query; si supera $0.05 el agente corta automaticamente
 ```
+
+---
+
+## Buscar logs utiles de un operador
+
+**Cuando:** para diagnosticar que ha pasado en un LOP. Cada LOP suele tener un sub-DAT logs con eventos timestampados.
+
+```python
+log = op('/project1/<op>/logs')
+print(f"{log.numRows} entries")
+for r in range(max(1, log.numRows-10), log.numRows):
+    print([str(log[r,c].val)[:120] for c in range(min(4, log.numCols))])
+```
+
+---
+
+## Crear un modulo Python para tool_td_mod desde cero
+
+**Cuando:** cuando quieres anadir una nueva funcion al repertorio del agente a traves de tool_td_mod, siguiendo el patron de modulo documentado y tipado.
+
+```python
+src_code = '''"""
+mi_modulo - descripcion breve.
+"""
+
+def hola(nombre: str) -> dict:
+    """Saluda a alguien.
+
+    Args:
+        nombre: nombre de la persona.
+
+    Returns:
+        dict con mensaje.
+    """
+    if not nombre:
+        return {"ok": False, "error": "nombre vacio"}
+    return {"ok": True, "mensaje": f"Hola, {nombre}"}
+'''
+
+# Compilar para verificar sintaxis antes de crear el DAT
+compile(src_code, 'mi_modulo', 'exec')
+
+# Crear o actualizar en el comp modules del tool_td_mod
+modules_comp = op('/project1/tool_td_mod1/modules')
+existing = modules_comp.op('td_mi_modulo')
+if existing:
+    existing.text = src_code
+else:
+    dat = modules_comp.create(textDAT, 'td_mi_modulo')
+    dat.text = src_code
+
+# Verificar que aparece en el schema del tool
+print(op('/project1/tool_td_mod1').GetTool()['tool_definition']['function']['parameters']['properties']['args']['description'])
+```
