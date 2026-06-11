@@ -1,54 +1,67 @@
 # Claude-knowledge
 
-Base de conocimiento acumulado trabajando con Claude en proyectos de audiovisual, generación de imagen, música y herramientas creativas.
+Base de conocimiento acumulado trabajando con Claude en proyectos de audiovisual, generacion de imagen, musica y herramientas creativas.
 
-**Mantenido por:** vuski / is-k-pax  
-**Última revisión:** junio 2026
+**Mantenido por:** vuski / is-k-pax
 
-> ✅ Este repo es editable directamente por Claude via GitHub MCP. Última edición automática: 8 junio 2026.
-
----
-
-## Cómo usar este repo
-
-Este repo está diseñado para ser leído por Claude al inicio de una sesión de trabajo. En cualquier conversación nueva, puedes compartir la URL raw de un archivo concreto y Claude lo leerá como contexto.
-
-URL raw base: `https://raw.githubusercontent.com/is-k-pax/Claude-knowledge/main/`
-
-Ejemplo:
-```
-https://raw.githubusercontent.com/is-k-pax/Claude-knowledge/main/touchdesigner/setups/lops_mcp_setup.md
-```
+> Este repo es editable directamente por Claude via GitHub MCP.
 
 ---
 
-## Estructura
+## Como usar este repo
 
-```
-Claude-knowledge/
-├── touchdesigner/
-│   ├── setups/        ← instalaciones, MCP, LOPs, configuraciones
-│   ├── shaders/       ← conocimiento GLSL acumulado
-│   ├── workflows/     ← pipelines y flujos de trabajo descubiertos
-│   └── skills/        ← skills de Claude específicas para TD
-├── resolume/
-├── ableton/
-├── comfyui/
-├── general/
-└── meta/
-```
+### Para Claude
+
+Lee `router.md` de la raiz al inicio de cada sesion. El router indica que documento leer segun la tarea.
+
+### Para humanos
+
+Navega la estructura de carpetas o consulta el indice de abajo.
 
 ---
 
-## Índice de documentos
+## Indice
 
 ### TouchDesigner
-| Archivo | Descripción |
+
+| Archivo | Descripcion |
 |---|---|
-| [touchdesigner/setups/lops_mcp_setup.md](touchdesigner/setups/lops_mcp_setup.md) | Comunicación Claude ↔ TD via LOPs (dotsimulate) — guía completa |
+| [td_onboarding.md](touchdesigner/td_onboarding.md) | Conexion Claude TD, verificacion, primeros pasos |
+| [td_lops_catalog.md](touchdesigner/td_lops_catalog.md) | Catalogo de operadores LOPs |
+| [td_pitfalls.md](touchdesigner/td_pitfalls.md) | Errores conocidos y trampas |
+| [td_snippets.md](touchdesigner/td_snippets.md) | Codigo reutilizable |
+| [td_claude_code.md](touchdesigner/td_claude_code.md) | Cuando y como usar Claude Code LOP |
+| [td_tool_creation.md](touchdesigner/td_tool_creation.md) | Crear tools para agentes |
+| [glsl/glsl_fundamentals.md](touchdesigner/glsl/glsl_fundamentals.md) | GLSL en TD: fundamentos |
+| [glsl/glsl_patterns.md](touchdesigner/glsl/glsl_patterns.md) | Patrones de shaders reutilizables |
+
+### Resolume
+
+| Archivo | Descripcion |
+|---|---|
+| [resolume_onboarding.md](resolume/resolume_onboarding.md) | Onboarding (pendiente) |
+
+### Ableton
+
+| Archivo | Descripcion |
+|---|---|
+| [ableton_onboarding.md](ableton/ableton_onboarding.md) | Onboarding (pendiente) |
+
+### ComfyUI
+
+| Archivo | Descripcion |
+|---|---|
+| [comfyui_onboarding.md](comfyui/comfyui_onboarding.md) | Onboarding (pendiente) |
+
+### General
+
+| Archivo | Descripcion |
+|---|---|
+| [mcp_troubleshooting.md](general/mcp_troubleshooting.md) | Problemas comunes de MCP |
 
 ### Meta
-| Archivo | Descripción |
+
+| Archivo | Descripcion |
 |---|---|
-| [meta/how_to_use_with_claude.md](meta/how_to_use_with_claude.md) | Instrucciones para onboard de Claude con este repo |
-| [meta/conventions.md](meta/conventions.md) | Convenciones de nombrado y estructura |
+| [conventions.md](meta/conventions.md) | Convenciones de nombrado y estructura |
+| [how_to_use.md](meta/how_to_use.md) | Instrucciones de uso para humanos y Claude |
