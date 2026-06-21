@@ -94,6 +94,37 @@ def onTableChange(dat):
     me.store(key, cur)
 ```
 
+## ⚠️ me.storage + absTime.frame: timestamps que sobreviven al reinicio de TD
+
+`me.storage` persiste con el `.toe` (se guarda y se recupera al reabrir). `absTime.frame` (o `me.time.frame`) es un contador de frames desde que arrancó el *proceso* de TD — se reinicia a un valor bajo cada vez que se abre TouchDesigner, sin relación con lo que haya guardado en `me.storage`.
+
+Si guardas un `t_inicio = absTime.frame` para interpolar una animación (easing, slide, fade) y lo persistes en `me.storage`, y el `.toe` se guarda con esa animación a medias, al reabrir el proyecto — mismo PC o otro — el nuevo `absTime.frame` puede ser mucho menor que el `t_inicio` guardado. El cálculo de progreso (`t_raw = (ahora - t_inicio) / duracion`) sale muy negativo, y cualquier curva de easing no lineal (smoothstep, ease-in-out, etc.) que no esté pensada para inputs fuera de `[0, 1]` puede explotar a valores absurdos en vez de simplemente "no haber avanzado".
+
+**Síntoma:** un parámetro (posición, escala, opacidad) se va a un valor astronómico o sin sentido justo después de reabrir el proyecto, de forma intermitente — solo cuando el `.toe` se guardó con una transición en curso. Fácil de confundir con un valor corrupto o un typo si no se mira `me.storage` directamente.
+
+**Fix (patrón general):**
+
+```python
+def tick():
+    ahora = absTime.frame
+    info = me.fetch('mi_animacion', None)
+    if info is None:
+        return
+
+    # Si 'ahora' es anterior a 't_inicio', el estado viene de una sesion
+    # anterior de TD (el contador se reinicio). Resolver de inmediato
+    # en vez de interpolar con un t_raw fuera de rango.
+    if ahora < info['t_inicio']:
+        t_raw = 1.0
+    else:
+        t_raw = (ahora - info['t_inicio']) / info['duracion']
+    t_raw = max(0.0, min(1.0, t_raw))  # clamp defensivo, SIEMPRE
+
+    # ... aplicar t_raw a la curva de easing que corresponda ...
+```
+
+Lo mismo aplica a cualquier "próximo evento programado" guardado como `absTime.frame + intervalo`: si al releerlo es mucho mayor que `ahora`, viene de una sesión anterior y hay que resincronizarlo — si no, el evento no vuelve a disparar nunca (parece "congelado" en vez de roto).
+
 ## ⚠️ webrenderTOP scroll: anti-patrones que NO funcionan
 
 Cuando un `webrenderTOP` es el background de un `containerCOMP`, el scroll y los clicks NO se reenvían automáticamente al navegador CEF.
