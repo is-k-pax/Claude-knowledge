@@ -17,6 +17,7 @@ ComfyUI está instalado via **Pinokio** en el PC principal (framemov).
 | `D:\pinokio\api\comfy.git\app\models` | Modelos (checkpoints, VAE, LoRAs, etc.) |
 | `D:\pinokio\api\comfy.git\ComfyUI\custom_nodes` | Nodos personalizados |
 | `D:\pinokio\api\comfy.git\ComfyUI\output` | Imágenes generadas |
+| `D:\pinokio\api\comfy.git\ComfyUI\user\default\workflows\` | Workflows guardados |
 
 **Python ejecutable:** `D:\pinokio\api\comfy.git\venv\Scripts\python.exe`
 
@@ -27,20 +28,34 @@ ComfyUI está instalado via **Pinokio** en el PC principal (framemov).
 ### Opción 1 — Script local (doble click)
 Archivo en el escritorio: `arrancar_comfyui.bat`
 
-Contenido:
 ```bat
 @echo off
-D:\pinokio\api\comfy.git\venv\Scripts\python.exe D:\pinokio\api\comfy.git\ComfyUI\main.py --listen 0.0.0.0 --port 8188 --database-url sqlite:///D:\pinokio\api\comfy.git\ComfyUI\user\comfyui_standalone.db
+D:\pinokio\api\comfy.git\venv\Scripts\python.exe D:\pinokio\api\comfy.git\ComfyUI\main.py --listen 0.0.0.0 --port 8188 --extra-model-paths-config D:\pinokio\api\comfy.git\ComfyUI\extra_model_paths.yaml --database-url sqlite:///D:\pinokio\api\comfy.git\ComfyUI\user\comfyui_standalone.db
 pause
 ```
+
+**IMPORTANTE:** El flag `--extra-model-paths-config` es necesario para que ComfyUI vea todos los modelos en `app\models\`. Sin él solo ve `ae.safetensors` en VAE y no encuentra `flux2-vae.safetensors`.
 
 ### Opción 2 — Arranque remoto via SSH (desde PC de casa)
 Ver `comfyui/comfyui_remote_setup.md` para el setup completo de SSH + Tailscale.
 
-Comando desde PC de casa:
 ```powershell
-ssh -i "$env:USERPROFILE\.ssh\comfyui_key" framemov@100.102.173.86 "powershell -WindowStyle Hidden -File C:\Users\framemov\Desktop\arrancar_comfyui.ps1"
+ssh -i "$env:USERPROFILE\.ssh\comfyui_key" framemov@100.102.173.86 "powershell -File C:\Users\framemov\Desktop\arrancar_comfyui_bg.ps1"
 ```
+
+---
+
+## Workflows guardados
+
+Los workflows están en `D:\pinokio\api\comfy.git\ComfyUI\user\default\workflows\`.
+
+Verificar que ComfyUI los ve: `http://127.0.0.1:8188/api/userdata?dir=workflows&recurse=true`
+
+Workflows disponibles:
+- `flux2_klein_img2img_editing.json` — Flux 2 Klein img2img con referencia
+- `video_wan2_2_14B_i2v.json` — Wan 2.2 14B image-to-video
+
+Ver `comfyui/comfyui_workflows.md` para detalles de uso de cada workflow.
 
 ---
 
@@ -84,11 +99,11 @@ Las siguientes skills están montadas localmente y Claude las lee automáticamen
 
 ## Modelos disponibles
 
-Los modelos están en `D:\pinokio\api\comfy.git\app\models\`.
+Los modelos están en `D:\pinokio\api\comfy.git\app\models\` y son visibles via `extra_model_paths.yaml`.
 
 Subcarpetas principales:
 - `checkpoints/` — modelos base (Flux, SDXL, SD1.5...)
-- `vae/` — VAEs
+- `vae/` — VAEs (incluye `flux2-vae.safetensors`, `ae.safetensors`, `wan_2.1_vae.safetensors`)
 - `loras/` — LoRAs
 - `clip/` — encoders CLIP
 - `text_encoders/` — encoders de texto (T5, CLIP-L...)
@@ -96,7 +111,7 @@ Subcarpetas principales:
 - `controlnet/` — modelos ControlNet
 - `upscale_models/` — modelos de upscale
 
-Para ver qué hay instalado, pedir a Claude: *"lista los modelos disponibles"*.
+Para ver qué hay instalado: `http://127.0.0.1:8188/models/vae` (o cualquier categoría).
 
 ---
 
@@ -113,5 +128,6 @@ Para ver qué hay instalado, pedir a Claude: *"lista los modelos disponibles"*.
 
 - ComfyUI corre en el puerto **8188**
 - El flag `--listen 0.0.0.0` es necesario para acceso remoto
-- Si falla al arrancar por conflicto de base de datos, usar el flag `--database-url` con una ruta alternativa
+- El flag `--extra-model-paths-config` es necesario para ver todos los modelos
+- Si falla al arrancar por conflicto de base de datos, usar `--database-url` con ruta alternativa
 - Pinokio no funciona para arrancar ComfyUI — usar el `.bat` o SSH remoto
