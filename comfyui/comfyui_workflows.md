@@ -45,45 +45,74 @@ El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador 
 
 ---
 
-## Wan 2.2 14B — Image to Video
+## Workflows disponibles
 
-**Archivo:** `video_wan2_2_14B_i2v.json`
-**Uso:** Animar una imagen fija generando un vídeo a partir de ella. ~5 segundos a 16fps.
+| Archivo | Modelo | Uso | Velocidad |
+|---|---|---|---|
+| `flux2_klein_4b_txt2img.json` | Flux 2 Klein 4B | Text to image | ~30s |
+| `flux2_klein_img2img_editing.json` | Flux 2 Klein 4B | Img2img / edición con referencia | ~15s |
+| `flux1_dev_txt2img.json` | Flux 1 Dev fp8 | Text to image (clásico) | ~42s |
+| `video_wan2_2_14B_i2v.json` | Wan 2.2 14B | Image to video ~5s | ~varios min |
+
+---
+
+## Flux 2 Klein 4B — Text to Image
+
+**Archivo:** `flux2_klein_4b_txt2img.json`
+**Uso:** Generar imágenes desde texto. Basado en el template oficial de ComfyUI (Flux.2 Klein 9B) adaptado al modelo 4B disponible.
 
 ### Modelos necesarios
 | Tipo | Archivo |
 |---|---|
-| UNet (low noise) | `wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors` |
-| UNet (high noise) | `wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors` |
-| VAE | `wan_2.1_vae.safetensors` |
-| CLIP | `umt5_xxl_fp8_e4m3fn_scaled.safetensors` |
-| LoRA low noise | `wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors` |
-| LoRA high noise | `wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors` |
+| UNet | `flux-2-klein-4b-fp8.safetensors` |
+| VAE | `flux2-vae.safetensors` |
+| CLIP | `qwen_3_4b.safetensors` |
 
 ### Parámetros clave
-| Parámetro | Valor por defecto | Nodo |
+| Parámetro | Valor | Nodo |
 |---|---|---|
-| Resolución | 640x640 | `129:98` (width/height) |
-| Frames | 81 | `129:98` (length) |
-| FPS | 16 | `129:94` |
-| Steps (normal) | 20 | `129:128` |
-| Steps (4step LoRA) | 4 | `129:118` |
-| CFG (normal) | 3.5 | `129:126` |
-| CFG (4step LoRA) | 1 | `129:122` |
-| Activar 4step LoRA | true/false | `129:131` |
-| Imagen de entrada | nombre del archivo | nodo `97` |
+| Steps | 20 | `75:62` |
+| CFG | 5 | `75:63` |
+| Sampler | euler | `75:61` |
+| Scheduler | Flux2Scheduler | `75:62` |
+| Resolución | 1024x1024 | `75:68` / `75:69` |
+| Prompt | texto | nodo `76` |
 
 ### Qué cambiar para cada generación
-1. **Prompt positivo** — nodo `129:93`, en inglés, describir el movimiento deseado
-2. **Imagen de entrada** — nodo `97`, campo `image`: nombre del archivo en la carpeta `input/`
-3. **Activar LoRA de 4 pasos** — nodo `129:131`: `true` = rápido (4 steps), `false` = calidad (20 steps)
-4. **Resolución** — nodo `129:98`: width y height (múltiplos de 16)
+1. **Prompt** — nodo `76`, campo `value`
+2. **Resolución** — nodos `75:68` (width) y `75:69` (height)
+3. **Seed** — nodo `75:73`, campo `noise_seed`
 
 ### Notas
-- El prompt negativo ya está en chino (el modelo es chino, funciona mejor así) — no tocar
-- Con 4step LoRA activo: generación muy rápida pero menor detalle
-- Output en `output/video/Wan2.2_i2v_*.mp4` → acceder via carpeta compartida
-- La imagen de entrada debe subirse primero con `upload_image`
+- Basado en el template oficial de ComfyUI `image_flux2_text_to_image_9b.json` con modelos 9B → 4B
+- Más rápido que Flux 1 Dev (30s vs 42s) y mejor estilo fotográfico
+- Output en `output/Flux2-Klein_*.png` → guardar en `%USERPROFILE%\Documents\comfyUI-Claude-output\`
+
+---
+
+## Flux 1 Dev — Text to Image (clásico)
+
+**Archivo:** `flux1_dev_txt2img.json`
+**Uso:** Generar imágenes desde texto con Flux 1 Dev. Workflow estándar con CheckpointLoader.
+
+### Modelos necesarios
+| Tipo | Archivo |
+|---|---|
+| Checkpoint | `flux1-dev-fp8.safetensors` (en `checkpoints/`) |
+
+### Parámetros clave
+| Parámetro | Valor | Nodo |
+|---|---|---|
+| Steps | 20 | nodo `5` |
+| CFG | 1 | nodo `5` |
+| Sampler | euler | nodo `5` |
+| Scheduler | simple | nodo `5` |
+| Resolución | 1024x1024 | nodo `4` |
+
+### Notas
+- Usa CheckpointLoaderSimple — solo ve modelos en `checkpoints/`, no en `diffusion_models/`
+- Más lento que Flux 2 Klein 4B pero resultados también muy buenos
+- Output en `output/Flux1-Dev_*.png`
 
 ---
 
@@ -104,45 +133,51 @@ El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador 
 |---|---|---|
 | Steps | 4 | `92:102` |
 | CFG | 1 | `92:103` |
-| Sampler | euler | `92:101` |
-| Scheduler | Flux2Scheduler | `92:102` |
 | Imagen 1 | nombre del archivo | nodo `76` |
 | Imagen 2 | nombre del archivo | nodo `81` |
-| Resolución | auto (1MP desde imagen 1) | `92:111` |
-
-### Qué cambiar para cada generación
-1. **Prompt** — nodo `92:109`: describir qué hacer con la imagen
-2. **Imagen de entrada** — nodo `76` Y nodo `81`: ambos con el mismo archivo si solo hay una imagen
-3. **Seed** — nodo `92:106` para reproducibilidad
 
 ### IMPORTANTE — uso con una sola imagen
-El workflow tiene dos nodos LoadImage (76 y 81) porque fue diseñado para mezclar dos referencias.
-**Con una sola imagen: poner el mismo archivo en los dos nodos (76 y 81).**
-Los nodos `92:85` y `92:111` (ImageScaleToTotalPixels) deben apuntar ambos al mismo LoadImage.
-`ReferenceLatent` usa la imagen como referencia de estructura — funciona perfectamente con una sola imagen repetida.
+Con una sola imagen: poner el mismo archivo en los dos nodos (76 y 81).
+NO usar `ae.safetensors` como VAE — el nombre correcto es `flux2-vae.safetensors`.
+NO cambiar el modelo por Flux 1 ni Kontext si falla.
+
+---
+
+## Wan 2.2 14B — Image to Video
+
+**Archivo:** `video_wan2_2_14B_i2v.json`
+**Uso:** Animar una imagen fija generando un vídeo a partir de ella. ~5 segundos a 16fps.
+
+### Modelos necesarios
+| Tipo | Archivo |
+|---|---|
+| UNet (low noise) | `wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors` |
+| UNet (high noise) | `wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors` |
+| VAE | `wan_2.1_vae.safetensors` |
+| CLIP | `umt5_xxl_fp8_e4m3fn_scaled.safetensors` |
+
+### Qué cambiar para cada generación
+1. **Prompt positivo** — nodo `129:93`, en inglés, describir el movimiento
+2. **Imagen de entrada** — nodo `97`, campo `image`
+3. **Activar LoRA de 4 pasos** — nodo `129:131`: `true` = rápido, `false` = calidad
 
 ### Notas
-- CFG=1 y steps=4 son óptimos para este modelo — no subir
-- El CLIP es Qwen 3 4B — entiende prompts largos y detallados en inglés
-- La imagen debe subirse con `upload_image` antes de ejecutar
-- Output en `output/Flux2-Klein_*.png` → guardar en `%USERPROFILE%\Documents\comfyUI-Claude-output\`
-- NO usar `ae.safetensors` como VAE — el nombre correcto es `flux2-vae.safetensors`
-- NO cambiar el modelo por Flux 1 ni Kontext si falla — revisar primero que el VAE y CLIP sean los correctos
+- El prompt negativo ya está en chino — no tocar
+- Output en `output/video/` → acceder via carpeta compartida `\\100.102.173.86\comfyui-output`
 
 ---
 
 ## Procedimiento estándar
 
 ```
-1. Subir imagen:          upload_image
-2. Cargar workflow:       get_workflow → nombre.json  ← SIEMPRE usar el JSON guardado
-3. Modificar parámetros:  modify_workflow → prompt, imagen (nodos 76 Y 81), seed
-4. Validar:               validate_workflow
-5. Ejecutar:              enqueue_workflow
-6. Esperar resultado:     get_history → filename
-7. Descargar:             get_image → filename
-8. Guardar:               %USERPROFILE%\Documents\comfyUI-Claude-output\ (crear si no existe)
-9. Confirmar al usuario la ruta exacta donde quedó guardada
+1. Cargar workflow:        get_workflow → nombre.json  ← SIEMPRE usar el JSON guardado
+2. Modificar parámetros:  modify_workflow → prompt, imagen, seed
+3. Validar:               validate_workflow
+4. Ejecutar:              enqueue_workflow
+5. Esperar resultado:     get_history → filename
+6. Descargar:             get_image → filename
+7. Guardar:               %USERPROFILE%\Documents\comfyUI-Claude-output\ (crear si no existe)
+8. Confirmar al usuario la ruta exacta
 ```
 
 **CRÍTICO:** Siempre cargar el JSON con `get_workflow` — nunca construir el workflow desde cero.
