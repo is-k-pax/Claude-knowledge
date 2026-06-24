@@ -50,25 +50,51 @@ Reiniciar Claude Desktop tras cualquier cambio en este archivo.
 
 ---
 
-## Arrancar ComfyUI remotamente via SSH
+## Flujo completo desde el PC de casa (con Claude)
 
-### Script en el PC de ComfyUI
+Este es el flujo que Claude del PC de casa debe seguir automáticamente:
 
-Archivo: `C:\Users\framemov\Desktop\arrancar_comfyui.ps1`
+### 1. Comprobar si ComfyUI está corriendo
+```
+get_system_stats → si responde, ComfyUI ya está activo, saltar al paso 3
+```
+
+### 2. Si no responde — arrancar ComfyUI via SSH
+```powershell
+ssh -i "$env:USERPROFILE\.ssh\comfyui_key" framemov@100.102.173.86 "powershell -File C:\Users\framemov\Desktop\arrancar_comfyui_bg.ps1"
+```
+Esperar 25 segundos y verificar con `get_system_stats` antes de continuar.
+
+### 3. Generar la imagen o vídeo
+Cargar el workflow con `get_workflow`, ajustar parámetros y ejecutar con `enqueue_workflow`.
+
+---
+
+## Scripts en el PC de ComfyUI
+
+### arrancar_comfyui_bg.ps1 (arranque en segundo plano — recomendado)
+`C:\Users\framemov\Desktop\arrancar_comfyui_bg.ps1`
+
+```powershell
+Start-Process -FilePath "D:\pinokio\api\comfy.git\venv\Scripts\python.exe" `
+  -ArgumentList "D:\pinokio\api\comfy.git\ComfyUI\main.py --listen 0.0.0.0 --port 8188 --database-url sqlite:///D:\pinokio\api\comfy.git\ComfyUI\user\comfyui_standalone.db" `
+  -WindowStyle Hidden
+```
+
+Arranca ComfyUI en segundo plano — libera la sesión SSH inmediatamente. No necesita ventana abierta.
+
+### arrancar_comfyui.ps1 (arranque con ventana — alternativo)
+`C:\Users\framemov\Desktop\arrancar_comfyui.ps1`
 
 ```powershell
 D:\pinokio\api\comfy.git\venv\Scripts\python.exe D:\pinokio\api\comfy.git\ComfyUI\main.py --listen 0.0.0.0 --port 8188 --database-url sqlite:///D:\pinokio\api\comfy.git\ComfyUI\user\comfyui_standalone.db
 ```
 
-### Comando desde el PC de casa
+Requiere que la ventana de PowerShell del PC de casa quede abierta.
 
-```powershell
-ssh -i "$env:USERPROFILE\.ssh\comfyui_key" framemov@100.102.173.86 "powershell -WindowStyle Hidden -File C:\Users\framemov\Desktop\arrancar_comfyui.ps1"
-```
+---
 
-La ventana de PowerShell del PC de casa debe quedarse abierta mientras ComfyUI esté corriendo.
-
-### Verificar que ComfyUI está respondiendo
+## Verificar que ComfyUI está respondiendo
 
 ```powershell
 Invoke-WebRequest -Uri "http://100.102.173.86:8188/system_stats" -UseBasicParsing | Select-Object StatusCode
@@ -106,18 +132,9 @@ Set-Service -Name sshd -StartupType 'Automatic'
 
 ---
 
-## Flujo de trabajo habitual
-
-1. Encender el PC de ComfyUI (o que esté encendido)
-2. Asegurarse de que Tailscale está activo en ambos PCs
-3. Desde el PC de casa, ejecutar el comando SSH para arrancar ComfyUI
-4. Esperar ~20 segundos a que arranque
-5. Abrir Claude Desktop en el PC de casa y pedir generaciones normalmente
-
----
-
 ## Notas
 
-- Si ComfyUI ya está corriendo (arrancado desde TD u otra vez), el comando SSH fallará por conflicto de puerto. Matar el proceso primero o ignorarlo si ya está corriendo.
+- Si ComfyUI ya está corriendo, el arranque via SSH fallará por conflicto de puerto — ignorar el error y continuar.
 - Las imágenes generadas se reciben como link o inline en el chat de Claude Desktop del PC de casa.
 - Las skills de ComfyUI deben estar instaladas también en el PC de casa para que Claude las use desde allí.
+- El script `arrancar_comfyui_bg.ps1` es el recomendado — no bloquea la sesión SSH.
