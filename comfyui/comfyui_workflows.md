@@ -45,28 +45,28 @@ PASO 1 — Generar imagen (Flux)
 → Confirmar con el usuario antes de continuar
 
 PASO 2 — Generar vídeo (Wan 2.2) — desde Cowork
-→ SCP de la imagen al input de ComfyUI
+→ upload_image() con la imagen del usuario
 → Resolución: según tabla arriba (¼ de la final)
 → Confirmar con el usuario antes de continuar
 
-PASO 3 — Upscale + interpolación — desde chat normal
+PASO 3 — Upscale + interpolación
 → Vídeo ya está en output/video/ del PC de ComfyUI
-→ Target height: según tabla arriba
+→ Usar workflow mínimo inline (ver sección Video Upscale)
 → FPS multiplier: 2 (×2 FPS) o 4 (×4 FPS) según lo que pida el usuario
 ```
 
-**No encadenar los pasos automáticamente** — esperar confirmación del usuario entre pasos. El vídeo puede tardar varios minutos y si algo falla es mejor saberlo antes de continuar.
+**No encadenar los pasos automáticamente** — esperar confirmación del usuario entre pasos.
 
 ---
 
 ## Cómo subir imágenes a ComfyUI desde el PC de casa
 
-**CRÍTICO:** El MCP de ComfyUI no puede leer rutas Linux (`/mnt/user-data/uploads/`) ni rutas de usuario de Windows. La imagen debe estar en la carpeta `input/` de ComfyUI antes de ejecutar el workflow.
+**CRÍTICO:** El MCP de ComfyUI no puede leer rutas Linux ni rutas de uploads internas. La imagen debe estar en la carpeta `input/` de ComfyUI antes de ejecutar el workflow.
 
 ### En Cowork (automático)
-Claude puede ejecutar SCP automáticamente:
-```powershell
-scp -i "$env:USERPROFILE\.ssh\comfyui_key" "<ruta_imagen_local>" "framemov@100.102.173.86:D:/pinokio/api/comfy.git/ComfyUI/input/<nombre_archivo>"
+Usar `mcp__comfyui__upload_image` con la ruta Windows del archivo — sube via HTTP al input/ sin SCP:
+```
+upload_image(source_path="C:\Users\vuski\...\imagen.png", filename="nombre.png")
 ```
 
 ### En chat normal (manual)
@@ -142,7 +142,7 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 ## Flux 2 Klein — Img2Img con referencia
 
 **Archivo:** `flux2_klein_img2img_editing.json`
-**Usar desde Cowork** para que el SCP sea automático.
+**Usar desde Cowork** para que el upload sea automático.
 
 ### Modelos necesarios
 | Tipo | Archivo |
@@ -161,7 +161,7 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 ## Wan 2.2 14B — Image to Video
 
 **Archivo:** `video_wan2_2_14B_i2v.json`
-**Usar desde Cowork** — necesita SCP para subir la imagen.
+**Usar desde Cowork** — necesita subir la imagen vía `upload_image`.
 
 ### Modelos necesarios
 | Tipo | Archivo |
@@ -175,7 +175,7 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 
 ### Procedimiento completo
 ```
-1. SCP → imagen al input de ComfyUI (Cowork lo hace automático)
+1. upload_image(source_path=<ruta Windows>, filename=<nombre>) → sube al input/
 2. get_workflow → video_wan2_2_14B_i2v.json
 3. modify_workflow → nodo 97: nombre del archivo
 4. modify_workflow → nodo 93: prompt de movimiento en inglés
@@ -204,7 +204,6 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 
 **Archivo:** `video_upscale_interpolate.json`
 **Uso:** Hacer upscale de resolución y aumentar FPS de un vídeo ya generado.
-**Usar desde chat normal** — el vídeo ya está en el PC de ComfyUI, no hace falta SCP.
 
 ### Modelos necesarios
 | Tipo | Archivo |
@@ -212,31 +211,50 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 | Upscale | `4x_NMKD-Siax_200k.pth` (fotorrealismo) |
 | Interpolación | `rife47.pth` (se descarga automáticamente la primera vez) |
 
-### Parámetros clave
-| Parámetro | Nodo | Valores |
-|---|---|---|
-| Vídeo de entrada | nodo `1`, campo `video` | nombre del archivo en `output/video/` |
-| Modelo de upscale | nodo `3`, campo `model_name` | `4x_NMKD-Siax_200k.pth` |
-| Resolución target (altura) | nodo `27`, campo `a` | 1920 (portrait), 1080 (landscape) |
-| FPS multiplier | nodo `42`, campo `value` | 2 = doblar FPS, 4 = cuadruplicar |
-| Multiplicador upscale | nodo `26`, campo `b` | 4 (siempre, modelo es 4x) |
+### CRÍTICO — NO cargar el JSON guardado para enqueue
 
-### Procedimiento completo
-```
-1. get_history → obtener nombre del vídeo generado (en output/video/)
-2. get_workflow → video_upscale_interpolate.json
-3. modify_workflow → nodo 1: video = nombre del archivo
-4. modify_workflow → nodo 27: a = resolución target según tabla
-5. modify_workflow → nodo 42: value = FPS multiplier (2 o 4)
-6. validate_workflow
-7. enqueue_workflow
-8. Esperar resultado — output en output/ con prefijo Upscaled_Interpolated_
+El workflow `video_upscale_interpolate.json` tiene nodos de UI (Labels rgthree, display nodes) y conexiones dinámicas de frame_rate que causan `prompt_outputs_failed_validation` al enqueuar via API. **Construir siempre el workflow mínimo inline:**
+
+```json
+{
+  "1": {"class_type": "VHS_LoadVideoPath", "inputs": {
+    "video": "D:\\pinokio\\api\\comfy.git\\ComfyUI\\output\\video\\FILENAME.mp4",
+    "force_rate": 0, "custom_width": 0, "custom_height": 0,
+    "frame_load_cap": 0, "skip_first_frames": 0, "select_every_nth": 1
+  }},
+  "2": {"class_type": "ImageUpscaleWithModel", "inputs": {"upscale_model": ["3",0], "image": ["1",0]}},
+  "3": {"class_type": "UpscaleModelLoader", "inputs": {"model_name": "4x_NMKD-Siax_200k.pth"}},
+  "16": {"class_type": "ImageScaleBy", "inputs": {"upscale_method": "lanczos", "scale_by": SCALE_BY, "image": ["2",0]}},
+  "43": {"class_type": "RIFE VFI", "inputs": {
+    "ckpt_name": "rife47.pth", "clear_cache_after_n_frames": 50,
+    "multiplier": FPS_MULT, "fast_mode": false, "ensemble": true, "scale_factor": 1,
+    "frames": ["16",0]
+  }},
+  "44": {"class_type": "VHS_VideoCombine", "inputs": {
+    "frame_rate": OUTPUT_FPS, "loop_count": 0,
+    "filename_prefix": "Upscaled_Interpolated_",
+    "format": "video/h264-mp4", "pix_fmt": "yuv420p", "crf": 19,
+    "save_metadata": true, "trim_to_audio": false,
+    "pingpong": false, "save_output": true, "images": ["43",0]
+  }}
+}
 ```
 
-### Notas
-- El Face Enhancer está en bypass — no activarlo (no tienes codeformer.pth)
-- Con vídeos largos o poca VRAM, activar Meta Batch Manager (nodo `4`) y bajar `frames_per_batch`
-- `rife47.pth` se descarga automáticamente la primera vez
+### Valores a sustituir
+
+| Vídeo Wan (entrada) | SCALE_BY | FPS_MULT | OUTPUT_FPS |
+|---|---|---|---|
+| 270×480 → 1080×1920 | 1.0 | 4 | 64 |
+| 480×270 → 1920×1080 | 1.0 | 4 | 64 |
+| 270×270 → 1080×1080 | 1.0 | 4 | 64 |
+
+**Nota FPS:** RIFE solo acepta multiplicadores enteros. Desde 16fps base: ×2=32fps, ×4=64fps. No se puede obtener exactamente 60fps — usar 64.
+
+### Pitfalls
+- **VHS_LoadVideo NO sirve** — solo lee del input/ folder. Los vídeos de Wan están en output/video/. Usar **VHS_LoadVideoPath** con ruta absoluta Windows completa.
+- **VHS_VideoCombine con format video/h264-mp4 requiere campos extra**: `pix_fmt`, `crf`, `save_metadata`, `trim_to_audio`. Sin ellos da 400 Bad Request.
+- **frame_rate como referencia dinámica falla** en VHS_VideoCombine via API — hardcodear el valor numérico.
+- **audio como referencia dinámica falla** si el mp4 fuente no tiene pista de audio (los vídeos de Wan no tienen audio). No conectar el campo audio.
 
 ---
 
@@ -251,4 +269,4 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 6. get_image → inline en el chat
 ```
 
-**CRÍTICO:** Nunca construir el workflow desde cero — siempre cargar el JSON guardado.
+**CRÍTICO:** Nunca construir el workflow desde cero — siempre cargar el JSON guardado. Excepción: video_upscale_interpolate.json (ver sección arriba).
