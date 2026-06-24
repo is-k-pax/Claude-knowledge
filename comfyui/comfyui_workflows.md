@@ -70,16 +70,16 @@ El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador 
 
 ---
 
-## Flux 2 Klein — Img2Img con dos referencias
+## Flux 2 Klein — Img2Img con referencia
 
 **Archivo:** `flux2_klein_img2img_editing.json`
-**Uso:** Editar o mezclar dos imágenes usando Flux 2 Klein como modelo de edición.
+**Uso:** Editar una imagen usando Flux 2 Klein como modelo de edición con referencia.
 
 ### Modelos necesarios
 | Tipo | Archivo |
 |---|---|
 | UNet | `flux-2-klein-4b-fp8.safetensors` |
-| VAE | `flux2-vae.safetensors` |
+| VAE | `flux2-vae.safetensors` ← nombre exacto, no usar `ae.safetensors` |
 | CLIP | `qwen_3_4b.safetensors` |
 
 ### Parámetros clave
@@ -94,31 +94,41 @@ El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador 
 | Resolución | auto (1MP desde imagen 1) | `92:111` |
 
 ### Qué cambiar para cada generación
-1. **Prompt** — nodo `92:109`: describir qué hacer con las dos imágenes
-2. **Imagen 1** — nodo `76`, campo `image`: primera referencia (estilos, colores, texturas)
-3. **Imagen 2** — nodo `81`, campo `image`: segunda referencia (estructura, composición)
-4. **Seed** — nodo `92:106` para reproducibilidad
+1. **Prompt** — nodo `92:109`: describir qué hacer con la imagen
+2. **Imagen de entrada** — nodo `76` Y nodo `81`: ambos con el mismo archivo si solo hay una imagen
+3. **Seed** — nodo `92:106` para reproducibilidad
+
+### IMPORTANTE — uso con una sola imagen
+El workflow tiene dos nodos LoadImage (76 y 81) porque fue diseñado para mezclar dos referencias.
+**Con una sola imagen: poner el mismo archivo en los dos nodos (76 y 81).**
+Los nodos `92:85` y `92:111` (ImageScaleToTotalPixels) deben apuntar ambos al mismo LoadImage.
+`ReferenceLatent` usa la imagen como referencia de estructura — funciona perfectamente con una sola imagen repetida.
 
 ### Cómo funciona
-Usa `ReferenceLatent` para codificar ambas imágenes como conditioning. La imagen 1 actúa como referencia de estilo/color, la imagen 2 como referencia de contenido/estructura. El prompt describe cómo combinarlas.
+Usa `ReferenceLatent` para codificar la imagen como conditioning de estructura. El prompt describe la transformación deseada. Con la misma imagen en ambas entradas, actúa como un img2img de alta fidelidad.
 
 ### Notas
 - CFG=1 y steps=4 son óptimos para este modelo — no subir
 - El CLIP es Qwen 3 4B — entiende prompts largos y detallados en inglés
-- Ambas imágenes deben subirse con `upload_image` antes de ejecutar
+- La imagen debe subirse con `upload_image` antes de ejecutar
 - Output en `output/Flux2-Klein_*.png` → entregar con `get_image` inline en el chat
+- NO usar `ae.safetensors` como VAE — el nombre correcto es `flux2-vae.safetensors`
+- NO cambiar el modelo por Flux 1 ni Kontext si falla — revisar primero que el VAE y CLIP sean los correctos
 
 ---
 
 ## Procedimiento estándar
 
 ```
-1. Subir imágenes:        upload_image
-2. Cargar workflow:       get_workflow → nombre.json
-3. Modificar parámetros:  modify_workflow → prompt, imagen, seed
+1. Subir imagen:          upload_image
+2. Cargar workflow:       get_workflow → nombre.json  ← SIEMPRE usar el JSON guardado
+3. Modificar parámetros:  modify_workflow → prompt, imagen (nodos 76 Y 81), seed
 4. Validar:               validate_workflow
 5. Ejecutar:              enqueue_workflow
 6. Esperar resultado:     get_history → filename
 7. Entregar:              get_image → inline en chat (imágenes)
                           carpeta compartida (vídeos)
 ```
+
+**CRÍTICO:** Siempre cargar el JSON con `get_workflow` — nunca construir el workflow desde cero.
+Los nombres de modelos, VAE y CLIP están en el JSON y son los correctos para este sistema.
