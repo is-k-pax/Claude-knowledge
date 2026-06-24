@@ -11,32 +11,17 @@ Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecu
 
 ## Cómo entregar el resultado al usuario
 
-### Imágenes → guardar en carpeta local + get_image
-Después de `enqueue_workflow`, siempre hacer:
+### Imágenes
+Después de `enqueue_workflow`:
 ```
 1. get_history → obtener el filename del output
 2. get_image (filename) → descarga la imagen
-3. Guardar en la carpeta de outputs del usuario (ver abajo)
-4. Confirmar al usuario la ruta donde está guardada
+3. Presentar la imagen al usuario inline en el chat
 ```
 
-### Carpeta de outputs del usuario (universal)
-Siempre guardar los resultados aquí:
-```
-%USERPROFILE%\Documents\comfyUI-Claude-output\
-```
+**NOTA sobre guardar en carpeta local:** Windows bloquea el acceso a `Documents` desde Cowork/Dispatch. No intentar guardar en `C:\Users\...\Documents\` — fallará. Las imágenes quedan accesibles en la carpeta de outputs de la sesión de Cowork (icono de carpeta en Dispatch).
 
-En Python/código esto se resuelve como:
-```python
-import os
-output_dir = os.path.join(os.path.expanduser("~"), "Documents", "comfyUI-Claude-output")
-os.makedirs(output_dir, exist_ok=True)
-```
-
-Esta ruta funciona en cualquier PC independientemente del nombre de usuario.
-Si la carpeta no existe, crearla antes de guardar.
-
-### Vídeos → carpeta compartida + carpeta local
+### Vídeos → carpeta compartida
 Los vídeos pesan 20-50MB. Se guardan automáticamente en el PC de ComfyUI en:
 `D:\pinokio\api\comfy.git\ComfyUI\output\video\`
 
@@ -86,7 +71,7 @@ El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador 
 ### Notas
 - Basado en el template oficial de ComfyUI `image_flux2_text_to_image_9b.json` con modelos 9B → 4B
 - Más rápido que Flux 1 Dev (30s vs 42s) y mejor estilo fotográfico
-- Output en `output/Flux2-Klein_*.png` → guardar en `%USERPROFILE%\Documents\comfyUI-Claude-output\`
+- Output en `output/Flux2-Klein_*.png`
 
 ---
 
@@ -111,7 +96,6 @@ El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador 
 
 ### Notas
 - Usa CheckpointLoaderSimple — solo ve modelos en `checkpoints/`, no en `diffusion_models/`
-- Más lento que Flux 2 Klein 4B pero resultados también muy buenos
 - Output en `output/Flux1-Dev_*.png`
 
 ---
@@ -175,9 +159,7 @@ NO cambiar el modelo por Flux 1 ni Kontext si falla.
 3. Validar:               validate_workflow
 4. Ejecutar:              enqueue_workflow
 5. Esperar resultado:     get_history → filename
-6. Descargar:             get_image → filename
-7. Guardar:               %USERPROFILE%\Documents\comfyUI-Claude-output\ (crear si no existe)
-8. Confirmar al usuario la ruta exacta
+6. Presentar:             get_image → inline en el chat
 ```
 
 **CRÍTICO:** Siempre cargar el JSON con `get_workflow` — nunca construir el workflow desde cero.
