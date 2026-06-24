@@ -23,6 +23,9 @@
 | Situación | Lee primero | Luego si necesitas más |
 |---|---|---|
 | Entro a ComfyUI o primera vez | comfyui/comfyui_onboarding.md | — |
+| Quiero generar un vídeo desde imagen | comfyui/comfyui_workflows.md | comfyui/comfyui_onboarding.md |
+| Quiero editar/mezclar dos imágenes | comfyui/comfyui_workflows.md | comfyui/comfyui_onboarding.md |
+| Quiero usar un workflow guardado | comfyui/comfyui_workflows.md | — |
 | Arrancar ComfyUI desde PC de casa | comfyui/comfyui_remote_setup.md | — |
 | Configurar acceso remoto Tailscale+SSH | comfyui/comfyui_remote_setup.md | — |
 | Algo falla en ComfyUI | comfyui/comfyui_onboarding.md | — |
