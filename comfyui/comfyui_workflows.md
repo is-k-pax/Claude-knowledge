@@ -9,10 +9,29 @@ Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecu
 
 ---
 
+## Cómo entregar el resultado al usuario
+
+### Imágenes → get_image (inline en el chat)
+Después de `enqueue_workflow`, siempre hacer:
+```
+1. get_history → obtener el filename del output
+2. get_image (filename) → devuelve la imagen inline en el chat
+```
+Nunca dejar el flujo sin llamar a `get_image` al final. El usuario debe ver la imagen en el chat.
+
+### Vídeos → carpeta compartida
+Los vídeos pesan 20-50MB — no se pueden enviar inline. Se guardan automáticamente en:
+`D:\pinokio\api\comfy.git\ComfyUI\output\video\`
+
+Esta carpeta está compartida en red via Tailscale como `\\100.102.173.86\comfyui-output`.
+El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador de Windows.
+
+---
+
 ## Wan 2.2 14B — Image to Video
 
 **Archivo:** `video_wan2_2_14B_i2v.json`
-**Uso:** Animar una imagen fija generando un vídeo a partir de ella.
+**Uso:** Animar una imagen fija generando un vídeo a partir de ella. ~5 segundos a 16fps.
 
 ### Modelos necesarios
 | Tipo | Archivo |
@@ -46,7 +65,7 @@ Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecu
 ### Notas
 - El prompt negativo ya está en chino (el modelo es chino, funciona mejor así) — no tocar
 - Con 4step LoRA activo: generación muy rápida pero menor detalle
-- Output en `output/video/Wan2.2_i2v_*.mp4`
+- Output en `output/video/Wan2.2_i2v_*.mp4` → acceder via carpeta compartida
 - La imagen de entrada debe subirse primero con `upload_image`
 
 ---
@@ -54,7 +73,7 @@ Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecu
 ## Flux 2 Klein — Img2Img con dos referencias
 
 **Archivo:** `flux2_klein_img2img_editing.json`
-**Uso:** Editar o mezclar dos imágenes usando Flux 2 Klein como modelo de edición. Toma dos imágenes de referencia y genera una nueva según el prompt.
+**Uso:** Editar o mezclar dos imágenes usando Flux 2 Klein como modelo de edición.
 
 ### Modelos necesarios
 | Tipo | Archivo |
@@ -85,32 +104,21 @@ Usa `ReferenceLatent` para codificar ambas imágenes como conditioning. La image
 
 ### Notas
 - CFG=1 y steps=4 son óptimos para este modelo — no subir
-- El CLIP es Qwen 3 4B (no T5 ni CLIP-L estándar) — entiende prompts largos y detallados en inglés
+- El CLIP es Qwen 3 4B — entiende prompts largos y detallados en inglés
 - Ambas imágenes deben subirse con `upload_image` antes de ejecutar
-- Output en `output/Flux2-Klein_*.png`
-- Resolución final = resolución de la imagen 1 escalada a 1MP
+- Output en `output/Flux2-Klein_*.png` → entregar con `get_image` inline en el chat
 
 ---
 
-## Procedimiento estándar para ejecutar un workflow
+## Procedimiento estándar
 
 ```
-1. Subir imágenes necesarias:
-   upload_image → imagen de entrada
-
-2. Cargar el workflow:
-   get_workflow → nombre_del_archivo.json
-
-3. Modificar parámetros:
-   modify_workflow → cambiar prompt, imagen, seed...
-
-4. Validar:
-   validate_workflow → confirmar que no hay errores
-
-5. Ejecutar:
-   enqueue_workflow → lanzar generación
-
-6. Ver resultado:
-   get_history → obtener filename
-   get_image → ver imagen/video
+1. Subir imágenes:        upload_image
+2. Cargar workflow:       get_workflow → nombre.json
+3. Modificar parámetros:  modify_workflow → prompt, imagen, seed
+4. Validar:               validate_workflow
+5. Ejecutar:              enqueue_workflow
+6. Esperar resultado:     get_history → filename
+7. Entregar:              get_image → inline en chat (imágenes)
+                          carpeta compartida (vídeos)
 ```
