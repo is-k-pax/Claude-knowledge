@@ -21,6 +21,44 @@ Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecu
 
 ---
 
+## Flujo completo imagen → vídeo → upscale
+
+El usuario siempre indica la **resolución final deseada** y la **orientación**. Claude calcula automáticamente las resoluciones intermedias.
+
+### Tabla de resoluciones por paso
+
+| Resultado final | Flux (imagen) | Wan 2.2 (vídeo base) | Upscale target (altura) |
+|---|---|---|---|
+| Portrait 1080×1920 | 540×960 | 270×480 | 1920 |
+| Landscape 1920×1080 | 960×540 | 480×270 | 1080 |
+| Cuadrado 1080×1080 | 540×540 | 270×270 | 1080 |
+| Portrait 720×1280 | 360×640 | 180×320 | 1280 |
+| Landscape 1280×720 | 640×360 | 320×180 | 720 |
+
+**Regla:** Wan 2.2 genera a ¼ de la resolución final (el upscale ×4 hace el resto). Flux genera a ½ de la resolución final para que la imagen de referencia tenga buena calidad.
+
+### Flujo por pasos (hacerlo siempre en este orden)
+
+```
+PASO 1 — Generar imagen (Flux)
+→ Resolución: según tabla arriba
+→ Confirmar con el usuario antes de continuar
+
+PASO 2 — Generar vídeo (Wan 2.2) — desde Cowork
+→ SCP de la imagen al input de ComfyUI
+→ Resolución: según tabla arriba (¼ de la final)
+→ Confirmar con el usuario antes de continuar
+
+PASO 3 — Upscale + interpolación — desde chat normal
+→ Vídeo ya está en output/video/ del PC de ComfyUI
+→ Target height: según tabla arriba
+→ FPS multiplier: 2 (×2 FPS) o 4 (×4 FPS) según lo que pida el usuario
+```
+
+**No encadenar los pasos automáticamente** — esperar confirmación del usuario entre pasos. El vídeo puede tardar varios minutos y si algo falla es mejor saberlo antes de continuar.
+
+---
+
 ## Cómo subir imágenes a ComfyUI desde el PC de casa
 
 **CRÍTICO:** El MCP de ComfyUI no puede leer rutas Linux (`/mnt/user-data/uploads/`) ni rutas de usuario de Windows. La imagen debe estar en la carpeta `input/` de ComfyUI antes de ejecutar el workflow.
@@ -141,10 +179,11 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 2. get_workflow → video_wan2_2_14B_i2v.json
 3. modify_workflow → nodo 97: nombre del archivo
 4. modify_workflow → nodo 93: prompt de movimiento en inglés
-5. validate_workflow
-6. enqueue_workflow
-7. get_history → esperar resultado (varios minutos)
-8. Decir al usuario que el vídeo está en \\100.102.173.86\comfyui-output\video\
+5. modify_workflow → nodo 98: width y height según tabla de resoluciones
+6. validate_workflow
+7. enqueue_workflow
+8. get_history → esperar resultado (varios minutos)
+9. Decir al usuario que el vídeo está en \\100.102.173.86\comfyui-output\video\
 ```
 
 ### Parámetros clave
@@ -152,6 +191,7 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 |---|---|
 | Imagen de entrada | nodo `97` |
 | Prompt positivo (inglés) | nodo `93` |
+| Width / Height | nodo `98` |
 | Frames (81 = ~5s a 16fps) | nodo `98` |
 
 ### Notas
@@ -169,45 +209,34 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 ### Modelos necesarios
 | Tipo | Archivo |
 |---|---|
-| Upscale | `4x_NMKD-Siax_200k.pth` (fotorrealismo) o `4x-AnimeSharp.pth` (anime) |
+| Upscale | `4x_NMKD-Siax_200k.pth` (fotorrealismo) |
 | Interpolación | `rife47.pth` (se descarga automáticamente la primera vez) |
-
-### Custom nodes necesarios
-- `comfyui-videohelpersuite` (VHS_LoadVideo, VHS_VideoCombine)
-- `comfyui-frame-interpolation` (RIFE VFI)
-- `comfyui-easy-use` (easy showAnything, easy mathFloat, easy int)
-- `comfyui-int-and-float` (IntToFloat, FloatToInt)
-- `rgthree-comfy` (Fast Groups Bypasser)
 
 ### Parámetros clave
 | Parámetro | Nodo | Valores |
 |---|---|---|
 | Vídeo de entrada | nodo `1`, campo `video` | nombre del archivo en `output/video/` |
 | Modelo de upscale | nodo `3`, campo `model_name` | `4x_NMKD-Siax_200k.pth` |
-| Resolución target (altura) | nodo `27`, campo `a` | 720, 1080, 1440, 2160 |
+| Resolución target (altura) | nodo `27`, campo `a` | 1920 (portrait), 1080 (landscape) |
 | FPS multiplier | nodo `42`, campo `value` | 2 = doblar FPS, 4 = cuadruplicar |
-| Multiplicador upscale | nodo `26`, campo `b` | 4 para modelos 4x, 2 para modelos 2x |
+| Multiplicador upscale | nodo `26`, campo `b` | 4 (siempre, modelo es 4x) |
 
 ### Procedimiento completo
 ```
 1. get_history → obtener nombre del vídeo generado (en output/video/)
 2. get_workflow → video_upscale_interpolate.json
 3. modify_workflow → nodo 1: video = nombre del archivo
-4. modify_workflow → nodo 27: a = resolución target (ej. 1080)
+4. modify_workflow → nodo 27: a = resolución target según tabla
 5. modify_workflow → nodo 42: value = FPS multiplier (2 o 4)
 6. validate_workflow
 7. enqueue_workflow
 8. Esperar resultado — output en output/ con prefijo Upscaled_Interpolated_
 ```
 
-### Outputs
-- Solo upscale: `output/Upscaled_*.mp4`
-- Upscale + interpolación: `output/Upscaled_Interpolated_*.mp4`
-
 ### Notas
-- El Face Enhancer está en bypass — no activarlo (no tienes el modelo codeformer.pth)
+- El Face Enhancer está en bypass — no activarlo (no tienes codeformer.pth)
 - Con vídeos largos o poca VRAM, activar Meta Batch Manager (nodo `4`) y bajar `frames_per_batch`
-- `rife47.pth` se descarga automáticamente la primera vez que se ejecuta el nodo RIFE
+- `rife47.pth` se descarga automáticamente la primera vez
 
 ---
 
