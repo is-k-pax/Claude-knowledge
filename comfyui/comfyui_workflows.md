@@ -15,6 +15,7 @@ Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecu
 |---|---|
 | Text to image (sin imagen de entrada) | Chat normal del proyecto comfyUI MCP |
 | Img2img o vídeo (con imagen de entrada) | **Cowork** — necesita acceso al sistema de archivos para SCP |
+| Upscale + interpolación de vídeo | Chat normal — el vídeo ya está en el PC de ComfyUI |
 
 **Por qué:** El chat normal de Claude Desktop no puede ejecutar comandos locales (SCP). Cowork con "Uso de computadora" activado sí puede ejecutar SCP automáticamente para copiar la imagen al PC de ComfyUI.
 
@@ -63,6 +64,7 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 | `flux2_klein_img2img_editing.json` | Flux 2 Klein 4B | Img2img / edición con referencia | ~15s |
 | `flux1_dev_txt2img.json` | Flux 1 Dev fp8 | Text to image (clásico) | ~42s |
 | `video_wan2_2_14B_i2v.json` | Wan 2.2 14B | Image to video ~5s | ~varios min |
+| `video_upscale_interpolate.json` | ESRGAN + RIFE | Upscale vídeo + interpolación FPS | ~varios min |
 
 ---
 
@@ -155,6 +157,57 @@ Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
 ### Notas
 - El prompt negativo (nodo `89`) está vacío — no tocar
 - Output en `output/video/` → acceder via `\\100.102.173.86\comfyui-output`
+
+---
+
+## Video Upscale + Interpolación
+
+**Archivo:** `video_upscale_interpolate.json`
+**Uso:** Hacer upscale de resolución y aumentar FPS de un vídeo ya generado.
+**Usar desde chat normal** — el vídeo ya está en el PC de ComfyUI, no hace falta SCP.
+
+### Modelos necesarios
+| Tipo | Archivo |
+|---|---|
+| Upscale | `4x_NMKD-Siax_200k.pth` (fotorrealismo) o `4x-AnimeSharp.pth` (anime) |
+| Interpolación | `rife47.pth` (se descarga automáticamente la primera vez) |
+
+### Custom nodes necesarios
+- `comfyui-videohelpersuite` (VHS_LoadVideo, VHS_VideoCombine)
+- `comfyui-frame-interpolation` (RIFE VFI)
+- `comfyui-easy-use` (easy showAnything, easy mathFloat, easy int)
+- `comfyui-int-and-float` (IntToFloat, FloatToInt)
+- `rgthree-comfy` (Fast Groups Bypasser)
+
+### Parámetros clave
+| Parámetro | Nodo | Valores |
+|---|---|---|
+| Vídeo de entrada | nodo `1`, campo `video` | nombre del archivo en `output/video/` |
+| Modelo de upscale | nodo `3`, campo `model_name` | `4x_NMKD-Siax_200k.pth` |
+| Resolución target (altura) | nodo `27`, campo `a` | 720, 1080, 1440, 2160 |
+| FPS multiplier | nodo `42`, campo `value` | 2 = doblar FPS, 4 = cuadruplicar |
+| Multiplicador upscale | nodo `26`, campo `b` | 4 para modelos 4x, 2 para modelos 2x |
+
+### Procedimiento completo
+```
+1. get_history → obtener nombre del vídeo generado (en output/video/)
+2. get_workflow → video_upscale_interpolate.json
+3. modify_workflow → nodo 1: video = nombre del archivo
+4. modify_workflow → nodo 27: a = resolución target (ej. 1080)
+5. modify_workflow → nodo 42: value = FPS multiplier (2 o 4)
+6. validate_workflow
+7. enqueue_workflow
+8. Esperar resultado — output en output/ con prefijo Upscaled_Interpolated_
+```
+
+### Outputs
+- Solo upscale: `output/Upscaled_*.mp4`
+- Upscale + interpolación: `output/Upscaled_Interpolated_*.mp4`
+
+### Notas
+- El Face Enhancer está en bypass — no activarlo (no tienes el modelo codeformer.pth)
+- Con vídeos largos o poca VRAM, activar Meta Batch Manager (nodo `4`) y bajar `frames_per_batch`
+- `rife47.pth` se descarga automáticamente la primera vez que se ejecuta el nodo RIFE
 
 ---
 
