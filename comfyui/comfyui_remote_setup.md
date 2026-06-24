@@ -16,6 +16,7 @@ PC casa (vuski / 100.75.16.45)
             ▼
 PC ComfyUI (framemov / 100.102.173.86)
     └── ComfyUI corriendo en 0.0.0.0:8188
+    └── Carpeta compartida: \\100.102.173.86\comfyui-output
 ```
 
 ---
@@ -52,8 +53,6 @@ Reiniciar Claude Desktop tras cualquier cambio en este archivo.
 
 ## Flujo completo desde el PC de casa (con Claude)
 
-Este es el flujo que Claude del PC de casa debe seguir automáticamente:
-
 ### 1. Comprobar si ComfyUI está corriendo
 ```
 get_system_stats → si responde, ComfyUI ya está activo, saltar al paso 3
@@ -65,14 +64,38 @@ ssh -i "$env:USERPROFILE\.ssh\comfyui_key" framemov@100.102.173.86 "powershell -
 ```
 Esperar 25 segundos y verificar con `get_system_stats` antes de continuar.
 
-### 3. Generar la imagen o vídeo
+### 3. Generar
 Cargar el workflow con `get_workflow`, ajustar parámetros y ejecutar con `enqueue_workflow`.
+
+### 4. Entregar el resultado
+- **Imágenes:** `get_history` → filename → `get_image` → inline en el chat. Siempre hacer este paso.
+- **Vídeos:** se guardan solos en la carpeta compartida. Decirle al usuario que los busque en `\\100.102.173.86\comfyui-output\video\` desde el explorador de Windows (pide usuario `framemov` y contraseña de Windows).
+
+---
+
+## Carpeta compartida de outputs (vídeos)
+
+La carpeta de output de ComfyUI está compartida en red:
+
+```
+\\100.102.173.86\comfyui-output
+```
+
+Acceder desde el explorador de Windows del PC de casa. Pide credenciales:
+- **Usuario:** `framemov`
+- **Contraseña:** contraseña de Windows del PC de ComfyUI
+
+Solo funciona con Tailscale activo en ambos PCs.
+
+Subcarpetas relevantes:
+- `video\` — vídeos generados con Wan
+- `Flux2-Klein_*.png` — imágenes generadas con Flux 2 Klein
 
 ---
 
 ## Scripts en el PC de ComfyUI
 
-### arrancar_comfyui_bg.ps1 (arranque en segundo plano — recomendado)
+### arrancar_comfyui_bg.ps1 (recomendado — segundo plano)
 `C:\Users\framemov\Desktop\arrancar_comfyui_bg.ps1`
 
 ```powershell
@@ -81,9 +104,9 @@ Start-Process -FilePath "D:\pinokio\api\comfy.git\venv\Scripts\python.exe" `
   -WindowStyle Hidden
 ```
 
-Arranca ComfyUI en segundo plano — libera la sesión SSH inmediatamente. No necesita ventana abierta.
+Arranca ComfyUI en segundo plano — libera la sesión SSH inmediatamente.
 
-### arrancar_comfyui.ps1 (arranque con ventana — alternativo)
+### arrancar_comfyui.ps1 (alternativo — con ventana)
 `C:\Users\framemov\Desktop\arrancar_comfyui.ps1`
 
 ```powershell
@@ -94,17 +117,7 @@ Requiere que la ventana de PowerShell del PC de casa quede abierta.
 
 ---
 
-## Verificar que ComfyUI está respondiendo
-
-```powershell
-Invoke-WebRequest -Uri "http://100.102.173.86:8188/system_stats" -UseBasicParsing | Select-Object StatusCode
-```
-
-Debe devolver `StatusCode: 200`.
-
----
-
-## Setup SSH (ya hecho, solo como referencia)
+## Setup SSH (referencia)
 
 ### En el PC de casa — generar clave
 ```powershell
@@ -112,18 +125,14 @@ New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.ssh"
 ssh-keygen -t ed25519 -f "$env:USERPROFILE\.ssh\comfyui_key" -N '""'
 ```
 
-La clave pública queda en `C:\Users\vuski\.ssh\comfyui_key.pub`.
-
 ### En el PC de ComfyUI — autorizar la clave
-La clave pública debe estar en:
-`C:\ProgramData\ssh\administrators_authorized_keys`
+Archivo: `C:\ProgramData\ssh\administrators_authorized_keys`
 
-Con permisos:
 ```powershell
 icacls "C:\ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "SYSTEM:(R)" /grant "Administradores:(R)"
 ```
 
-### Activar SSH server en el PC de ComfyUI (PowerShell como admin)
+### Activar SSH server (PowerShell como admin)
 ```powershell
 Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
 Start-Service sshd
@@ -134,7 +143,6 @@ Set-Service -Name sshd -StartupType 'Automatic'
 
 ## Notas
 
-- Si ComfyUI ya está corriendo, el arranque via SSH fallará por conflicto de puerto — ignorar el error y continuar.
-- Las imágenes generadas se reciben como link o inline en el chat de Claude Desktop del PC de casa.
-- Las skills de ComfyUI deben estar instaladas también en el PC de casa para que Claude las use desde allí.
-- El script `arrancar_comfyui_bg.ps1` es el recomendado — no bloquea la sesión SSH.
+- Si ComfyUI ya está corriendo, el arranque via SSH fallará por conflicto de puerto — ignorar y continuar.
+- La carpeta compartida solo funciona con Tailscale activo en ambos PCs.
+- Las skills de ComfyUI deben estar instaladas en el PC de casa para que Claude las use desde allí.
