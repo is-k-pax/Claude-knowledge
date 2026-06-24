@@ -9,24 +9,42 @@ Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecu
 
 ---
 
+## Cómo subir imágenes a ComfyUI desde el PC de casa
+
+**CRÍTICO:** El MCP de ComfyUI no puede leer rutas Linux (`/mnt/user-data/uploads/`) ni rutas de usuario de Windows. La única forma de subir imágenes desde el PC de casa es via SCP sobre Tailscale.
+
+### Procedimiento para subir imagen via SCP
+```powershell
+# Desde PowerShell del PC de casa:
+scp -i "$env:USERPROFILE\.ssh\comfyui_key" "<ruta_imagen_local>" "framemov@100.102.173.86:D:/pinokio/api/comfy.git/ComfyUI/input/<nombre_archivo>"
+```
+
+Una vez copiada, usar el nombre del archivo en el nodo LoadImage del workflow.
+
+### Cuando el usuario adjunta una imagen en el chat
+1. Guardar la imagen en el PC de casa (la ruta aparece en el contexto de la sesión)
+2. Ejecutar SCP para copiarla al input de ComfyUI en `framemov@100.102.173.86`
+3. Usar el nombre del archivo en el workflow
+
+---
+
 ## Cómo entregar el resultado al usuario
 
 ### Imágenes
-Después de `enqueue_workflow`:
 ```
 1. get_history → obtener el filename del output
 2. get_image (filename) → descarga la imagen
-3. Presentar la imagen al usuario inline en el chat
+3. Presentar inline en el chat
 ```
 
-**NOTA sobre guardar en carpeta local:** Windows bloquea el acceso a `Documents` desde Cowork/Dispatch. No intentar guardar en `C:\Users\...\Documents\` — fallará. Las imágenes quedan accesibles en la carpeta de outputs de la sesión de Cowork (icono de carpeta en Dispatch).
+**NOTA:** Windows bloquea escritura en `Documents` desde Cowork/Dispatch. No intentar guardar ahí — fallará. Las imágenes quedan en la carpeta de outputs de la sesión (icono de carpeta en Dispatch).
 
-### Vídeos → carpeta compartida
-Los vídeos pesan 20-50MB. Se guardan automáticamente en el PC de ComfyUI en:
+### Vídeos
+Los vídeos pesan 20-50MB. Se guardan en el PC de ComfyUI en:
 `D:\pinokio\api\comfy.git\ComfyUI\output\video\`
 
-Esta carpeta está compartida en red via Tailscale como `\\100.102.173.86\comfyui-output`.
-El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador de Windows.
+Accesibles via carpeta compartida Tailscale: `\\100.102.173.86\comfyui-output`
+(usuario: `framemov`, contraseña: contraseña de Windows del PC de ComfyUI)
 
 ---
 
@@ -69,7 +87,6 @@ El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador 
 3. **Seed** — nodo `75:73`, campo `noise_seed`
 
 ### Notas
-- Basado en el template oficial de ComfyUI `image_flux2_text_to_image_9b.json` con modelos 9B → 4B
 - Más rápido que Flux 1 Dev (30s vs 42s) y mejor estilo fotográfico
 - Output en `output/Flux2-Klein_*.png`
 
@@ -78,21 +95,12 @@ El usuario puede acceder desde el PC de casa abriendo esa ruta en el explorador 
 ## Flux 1 Dev — Text to Image (clásico)
 
 **Archivo:** `flux1_dev_txt2img.json`
-**Uso:** Generar imágenes desde texto con Flux 1 Dev. Workflow estándar con CheckpointLoader.
+**Uso:** Generar imágenes desde texto con Flux 1 Dev.
 
 ### Modelos necesarios
 | Tipo | Archivo |
 |---|---|
 | Checkpoint | `flux1-dev-fp8.safetensors` (en `checkpoints/`) |
-
-### Parámetros clave
-| Parámetro | Valor | Nodo |
-|---|---|---|
-| Steps | 20 | nodo `5` |
-| CFG | 1 | nodo `5` |
-| Sampler | euler | nodo `5` |
-| Scheduler | simple | nodo `5` |
-| Resolución | 1024x1024 | nodo `4` |
 
 ### Notas
 - Usa CheckpointLoaderSimple — solo ve modelos en `checkpoints/`, no en `diffusion_models/`
@@ -125,6 +133,9 @@ Con una sola imagen: poner el mismo archivo en los dos nodos (76 y 81).
 NO usar `ae.safetensors` como VAE — el nombre correcto es `flux2-vae.safetensors`.
 NO cambiar el modelo por Flux 1 ni Kontext si falla.
 
+### Subir imagen de entrada
+Usar el procedimiento SCP descrito arriba antes de ejecutar el workflow.
+
 ---
 
 ## Wan 2.2 14B — Image to Video
@@ -139,23 +150,42 @@ NO cambiar el modelo por Flux 1 ni Kontext si falla.
 | UNet (high noise) | `wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors` |
 | VAE | `wan_2.1_vae.safetensors` |
 | CLIP | `umt5_xxl_fp8_e4m3fn_scaled.safetensors` |
+| LoRA low noise | `wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors` |
+| LoRA high noise | `wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors` |
 
-### Qué cambiar para cada generación
-1. **Prompt positivo** — nodo `129:93`, en inglés, describir el movimiento
-2. **Imagen de entrada** — nodo `97`, campo `image`
-3. **Activar LoRA de 4 pasos** — nodo `129:131`: `true` = rápido, `false` = calidad
+### Procedimiento completo con imagen desde el PC de casa
+```
+1. Guardar imagen adjunta en el PC de casa
+2. SCP → copiar a framemov@100.102.173.86:D:/pinokio/api/comfy.git/ComfyUI/input/<nombre>.png
+3. get_workflow → video_wan2_2_14B_i2v.json
+4. modify_workflow → nodo 97, imagen: <nombre>.png
+5. modify_workflow → nodo 93, prompt de movimiento en inglés
+6. validate_workflow
+7. enqueue_workflow
+8. get_history → esperar resultado (puede tardar varios minutos)
+9. Decir al usuario que el vídeo está en \\100.102.173.86\comfyui-output\video\
+```
+
+### Parámetros clave
+| Parámetro | Valor | Nodo |
+|---|---|---|
+| Imagen de entrada | nombre del archivo | nodo `97` |
+| Prompt positivo | texto en inglés | nodo `93` |
+| Resolución | 1024x768 | nodo `98` |
+| Frames | 81 (~5s a 16fps) | nodo `98` |
 
 ### Notas
-- El prompt negativo ya está en chino — no tocar
-- Output en `output/video/` → acceder via carpeta compartida `\\100.102.173.86\comfyui-output`
+- El prompt negativo (nodo `89`) ya está vacío — no tocar
+- Con LoRA 4steps activo: 4 steps, muy rápido
+- Output en `output/video/` → acceder via `\\100.102.173.86\comfyui-output`
 
 ---
 
-## Procedimiento estándar
+## Procedimiento estándar (imágenes txt2img — sin imagen de entrada)
 
 ```
 1. Cargar workflow:        get_workflow → nombre.json  ← SIEMPRE usar el JSON guardado
-2. Modificar parámetros:  modify_workflow → prompt, imagen, seed
+2. Modificar parámetros:  modify_workflow → prompt, seed
 3. Validar:               validate_workflow
 4. Ejecutar:              enqueue_workflow
 5. Esperar resultado:     get_history → filename
@@ -163,4 +193,3 @@ NO cambiar el modelo por Flux 1 ni Kontext si falla.
 ```
 
 **CRÍTICO:** Siempre cargar el JSON con `get_workflow` — nunca construir el workflow desde cero.
-Los nombres de modelos, VAE y CLIP están en el JSON y son los correctos para este sistema.
