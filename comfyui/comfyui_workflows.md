@@ -1,7 +1,7 @@
 # ComfyUI — Workflows
 
 Workflows probados y listos para usar. Los JSONs están guardados en:
-`D:\pinokio\api\comfy.git\ComfyUI\user\workflows\`
+`D:\pinokio\api\comfy.git\ComfyUI\user\default\workflows\`
 
 Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecutar con `enqueue_workflow`.
 
@@ -11,16 +11,33 @@ Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecu
 
 ## Cómo entregar el resultado al usuario
 
-### Imágenes → get_image (inline en el chat)
+### Imágenes → guardar en carpeta local + get_image
 Después de `enqueue_workflow`, siempre hacer:
 ```
 1. get_history → obtener el filename del output
-2. get_image (filename) → devuelve la imagen inline en el chat
+2. get_image (filename) → descarga la imagen
+3. Guardar en la carpeta de outputs del usuario (ver abajo)
+4. Confirmar al usuario la ruta donde está guardada
 ```
-Nunca dejar el flujo sin llamar a `get_image` al final. El usuario debe ver la imagen en el chat.
 
-### Vídeos → carpeta compartida
-Los vídeos pesan 20-50MB — no se pueden enviar inline. Se guardan automáticamente en:
+### Carpeta de outputs del usuario (universal)
+Siempre guardar los resultados aquí:
+```
+%USERPROFILE%\Documents\comfyUI-Claude-output\
+```
+
+En Python/código esto se resuelve como:
+```python
+import os
+output_dir = os.path.join(os.path.expanduser("~"), "Documents", "comfyUI-Claude-output")
+os.makedirs(output_dir, exist_ok=True)
+```
+
+Esta ruta funciona en cualquier PC independientemente del nombre de usuario.
+Si la carpeta no existe, crearla antes de guardar.
+
+### Vídeos → carpeta compartida + carpeta local
+Los vídeos pesan 20-50MB. Se guardan automáticamente en el PC de ComfyUI en:
 `D:\pinokio\api\comfy.git\ComfyUI\output\video\`
 
 Esta carpeta está compartida en red via Tailscale como `\\100.102.173.86\comfyui-output`.
@@ -104,14 +121,11 @@ El workflow tiene dos nodos LoadImage (76 y 81) porque fue diseñado para mezcla
 Los nodos `92:85` y `92:111` (ImageScaleToTotalPixels) deben apuntar ambos al mismo LoadImage.
 `ReferenceLatent` usa la imagen como referencia de estructura — funciona perfectamente con una sola imagen repetida.
 
-### Cómo funciona
-Usa `ReferenceLatent` para codificar la imagen como conditioning de estructura. El prompt describe la transformación deseada. Con la misma imagen en ambas entradas, actúa como un img2img de alta fidelidad.
-
 ### Notas
 - CFG=1 y steps=4 son óptimos para este modelo — no subir
 - El CLIP es Qwen 3 4B — entiende prompts largos y detallados en inglés
 - La imagen debe subirse con `upload_image` antes de ejecutar
-- Output en `output/Flux2-Klein_*.png` → entregar con `get_image` inline en el chat
+- Output en `output/Flux2-Klein_*.png` → guardar en `%USERPROFILE%\Documents\comfyUI-Claude-output\`
 - NO usar `ae.safetensors` como VAE — el nombre correcto es `flux2-vae.safetensors`
 - NO cambiar el modelo por Flux 1 ni Kontext si falla — revisar primero que el VAE y CLIP sean los correctos
 
@@ -126,8 +140,9 @@ Usa `ReferenceLatent` para codificar la imagen como conditioning de estructura. 
 4. Validar:               validate_workflow
 5. Ejecutar:              enqueue_workflow
 6. Esperar resultado:     get_history → filename
-7. Entregar:              get_image → inline en chat (imágenes)
-                          carpeta compartida (vídeos)
+7. Descargar:             get_image → filename
+8. Guardar:               %USERPROFILE%\Documents\comfyUI-Claude-output\ (crear si no existe)
+9. Confirmar al usuario la ruta exacta donde quedó guardada
 ```
 
 **CRÍTICO:** Siempre cargar el JSON con `get_workflow` — nunca construir el workflow desde cero.
