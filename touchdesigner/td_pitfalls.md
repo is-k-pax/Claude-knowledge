@@ -31,6 +31,31 @@ n2.nodeY = 650
 
 ---
 
+## ⚠️ net.apply() trunca expresiones Python con comas
+
+`net.apply()` parsea el texto de la red y tiene problemas con expresiones Python que contienen **comas dentro de paréntesis** — las interpreta como separadores de argumento del formato de señal y trunca la expresión.
+
+**Síntoma:** TD reporta `SyntaxError: '(' was never closed` en el parámetro que contenía la expresión. El valor queda a 0.
+
+**Ejemplo problemático:**
+```
+vec2valuex:=tdu.remap(math.sin(op('x')['chan1'] * 6.28), -1, 1, 3.0, 5.5)
+```
+net.apply() trunca en la primera coma y deja:
+```
+tdu.remap(math.sin(op('x')['chan1'] * 6.28
+```
+
+**Fix:** para parámetros con expresiones Python complejas (las que contienen comas), **no usar net.apply()** — setear el `.expr` directamente con `td_code`:
+
+```python
+op('/mi/comp').par['vec2valuex'].expr = "tdu.remap(math.sin(op('power_lfo_null')['chan1'] * 6.2831853), -1, 1, 3.0, 5.5)"
+```
+
+**Regla práctica:** `net.apply()` es seguro para valores numéricos y expresiones simples sin comas. Para expresiones con `tdu.remap()`, funciones con múltiples args, o cualquier cosa con comas internas → usar `td_code` directamente.
+
+---
+
 ## Threading y cook
 
 - `time.sleep()` >1s dentro de `execute_python` **BLOQUEA el cook thread**. Bridges desconectan, tool_use queda stuck, MCP da timeout a 4 minutos. Solución: queries cortas en múltiples invocaciones separadas del MCP.
@@ -136,19 +161,12 @@ def tick():
     if info is None:
         return
 
-    # Si 'ahora' es anterior a 't_inicio', el estado viene de una sesion
-    # anterior de TD (el contador se reinicio). Resolver de inmediato
-    # en vez de interpolar con un t_raw fuera de rango.
     if ahora < info['t_inicio']:
         t_raw = 1.0
     else:
         t_raw = (ahora - info['t_inicio']) / info['duracion']
     t_raw = max(0.0, min(1.0, t_raw))  # clamp defensivo, SIEMPRE
-
-    # ... aplicar t_raw a la curva de easing que corresponda ...
 ```
-
-Lo mismo aplica a cualquier "próximo evento programado" guardado como `absTime.frame + intervalo`: si al releerlo es mucho mayor que `ahora`, viene de una sesión anterior y hay que resincronizarlo — si no, el evento no vuelve a disparar nunca (parece "congelado" en vez de roto).
 
 ## ⚠️ webrenderTOP scroll: anti-patrones que NO funcionan
 
