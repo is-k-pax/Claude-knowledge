@@ -3,7 +3,7 @@
 Cómo conectar Claude a un proyecto TouchDesigner via MCP y verificar que todo funciona.
 
 **Origen:** experiencia acumulada en proyectos con LOPs (dotsimulate), mayo-junio 2026.  
-**Última revisión:** 8 de junio de 2026.
+**Última revisión:** 27 de junio de 2026.
 
 ---
 
@@ -27,9 +27,11 @@ Mapa visual de operadores: https://docs.dotsimulate.com/map/
 
 ---
 
-## 2 · El MCP touchdesigner-lop
+## 2 · Dos interfaces disponibles: MCP LOP + Tool Manager
 
-El usuario te conecta a su proyecto a través de un servidor MCP. Tools principales:
+### MCP LOP (puerto 18555) — siempre disponible
+
+El acceso base. Tools principales:
 
 | Tool | Para qué |
 |---|---|
@@ -37,11 +39,21 @@ El usuario te conecta a su proyecto a través de un servidor MCP. Tools principa
 | `list_operators` | Listar hijos de un COMP (por defecto /project1) |
 | `get_operator_info` | Parámetros, conexiones, errores de un operador |
 | `set_parameter` | Cambiar UN parámetro (value como string) |
-| `execute_python` | Tu herramienta principal. Ejecuta Python arbitrario en el contexto de TD |
+| `execute_python` | Ejecuta Python arbitrario en el contexto de TD |
 | `read_dat` / `write_dat` | Leer/escribir contenido de un DAT |
 | `get_chop_channels` | Canales y valores de un CHOP |
 
-Si tienes el MCP de Anthropic (`touchdesigner:`) también tienes `execute_python_script` con modos read-only/safe-write/full-exec y `get_exec_log` para auditar lo que has hecho.
+### Tool Manager (puerto 18766) — cuando está configurado
+
+Interface ampliada. Requiere `/claude_desktop` con los tres operadores.
+Ver `td_tool_manager_setup.md` para instrucciones de setup.
+
+| Tool | Para qué |
+|---|---|
+| `td_code` | Python con variables persistentes entre llamadas |
+| `td_mod / net` | Leer/escribir redes enteras como texto (`net.summary`, `net.apply`) |
+| `td_mod / catalog` | Buscar tipos de operadores |
+| `td_mod / search` | Descubrir módulos disponibles |
 
 ---
 
@@ -56,21 +68,30 @@ print(f"Operadores en /project1: {len(op('/project1').children)}")
 lops = [c.path for c in op('/project1').children if hasattr(c,'tags') and 'LOP' in c.tags]
 print(f"LOPs encontrados: {len(lops)}")
 for p in lops: print(f"  {p}")
-```
 
-Si funciona, estás dentro. Si falla: "no tengo conexión con TD, ¿puedes verificar que el servidor MCP está activo?".
+# Verificar si Tool Manager está disponible
+claude_desktop = op('/claude_desktop')
+if claude_desktop:
+    tm = op('/claude_desktop/tool_manager1')
+    if tm:
+        print(f"Tool Manager: {'Running' if tm.par.Running.val else 'Stopped'}")
+```
 
 ---
 
 ## 4 · Comportamiento al entrar a un proyecto LOPs nuevo
 
 1. **Smoke test:** verificar conexión
-2. **Inventario:** listar LOPs y clasificar (agents, tools, etc.)
-3. **Leer documentos master** — pedir "¿hay un master.md o similar?"
-4. **No tocar producción.** Copiar operadores como `*_test`, usar Haiku
-5. **`reinitextensions`** después de cualquier cambio estructural en un agente
-6. **Limpiar tras experimentos.** Borrar filas de test, destruir operadores copiados
-7. **No usar Claude Code** sin pedir permiso explícito
+2. **Verificar si existe `/claude_desktop`** con Tool Manager configurado
+   - Si existe y Running=True → usar `td_mod` y `td_code` además del MCP LOP
+   - Si existe pero parado → arrancar con `tm.par.Startserver.pulse()`
+   - Si no existe → ofrecerse a crearlo (ver `td_tool_manager_setup.md`)
+3. **Inventario:** listar LOPs y clasificar (agents, tools, etc.)
+4. **Leer documentos master** — pedir "¿hay un master.md o similar?"
+5. **No tocar producción.** Copiar operadores como `*_test`, usar Haiku
+6. **`reinitextensions`** después de cualquier cambio estructural en un agente
+7. **Limpiar tras experimentos.** Borrar filas de test, destruir operadores copiados
+8. **No usar Claude Code** sin pedir permiso explícito
 
 ---
 

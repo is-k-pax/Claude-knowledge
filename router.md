@@ -13,6 +13,7 @@
 | Necesito código TD reutilizable | touchdesigner/td_snippets.md | — |
 | Algo falla en TD o LOPs | touchdesigner/td_pitfalls.md | — |
 | Crear un tool nuevo para un agente | touchdesigner/td_tool_creation.md | — |
+| Configurar Tool Manager para Claude Desktop | touchdesigner/td_tool_manager_setup.md | — |
 | Usar Claude Code LOP | touchdesigner/td_claude_code.md | — |
 | Me piden un shader GLSL | touchdesigner/glsl/glsl_writing_patterns.md | touchdesigner/glsl/glsl_utils_reference.md |
 | Shader para el container shader_changer_01 | touchdesigner/glsl/glsl_container_architecture.md | touchdesigner/glsl/glsl_writing_patterns.md |
