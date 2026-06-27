@@ -2,7 +2,32 @@
 
 Errores y trampas descubiertas trabajando con TD y LOPs. Antes de asumir que tu código está mal, revisa esta lista.
 
-**Última revisión:** junio 2026.
+**Última revisión:** 27 de junio de 2026.
+
+---
+
+## ⚠️ Posición de nodos al crearlos con Python
+
+Al crear operadores con `comp.create(tipo, 'nombre')`, TD los coloca en `x=0, y=0` por defecto. Si se crean varios seguidos sin asignar posición, **quedan todos apilados en el mismo punto** — visualmente solo se ve uno encima de los demás.
+
+**Siempre** asignar `nodeX` y `nodeY` inmediatamente después de crear cada operador. Primero leer dónde están los operadores existentes para elegir una zona libre:
+
+```python
+# Leer posiciones existentes antes de crear
+for c in comp.children:
+    print(f"{c.name}: x={c.nodeX}, y={c.nodeY}")
+
+# Crear y posicionar en cadena lógica
+n1 = comp.create(speedCHOP, 'mi_speed')
+n1.nodeX = -575
+n1.nodeY = 650
+
+n2 = comp.create(lagCHOP, 'mi_lag')
+n2.nodeX = -375
+n2.nodeY = 650
+```
+
+**Convención de espaciado:** separar nodos ~200 unidades en X, ~125 en Y. Los nodos de una misma cadena van en fila horizontal con el mismo Y.
 
 ---
 
