@@ -11,14 +11,16 @@ Para ejecutar un workflow: cargar con `get_workflow`, ajustar parámetros, ejecu
 
 ## Cuándo usar Chat vs Cowork
 
-Con ComfyUI instalado en local, **todo se puede hacer desde el chat normal**. No se necesita Cowork para subir imágenes.
+La única razón para usar Cowork es **subir una imagen de referencia al `input/` de ComfyUI cuando éste corre en una máquina remota** (framemov). Con ComfyUI local (vuski) todo va por chat normal.
 
-| Tarea | Usar |
-|---|---|
-| Text to image | Chat normal |
-| Img2img / edición con referencia | Chat normal — upload directo por ruta local |
-| Vídeo desde imagen | Chat normal — upload directo por ruta local |
-| Upscale + interpolación de vídeo | Chat normal — el vídeo ya está en output/ local |
+| Tarea | vuski (local) | framemov (remoto) |
+|---|---|---|
+| Text to image | Chat normal | Chat normal |
+| Img2img con imagen de referencia | Chat normal — `upload_image` con ruta local | **Cowork** — necesita SCP para copiar la imagen |
+| Wan 2.2 i2v con imagen de referencia | Chat normal — `upload_image` con ruta local | **Cowork** — necesita SCP para copiar la imagen |
+| Upscale + interpolación de vídeo | Chat normal — vídeo ya en output/ local | Chat normal — vídeo ya en output/ de framemov |
+
+**Por qué:** `upload_image` del MCP necesita una ruta Windows accesible desde el PC donde corre el MCP (vuski). Si ComfyUI está en framemov (otra máquina), la imagen tiene que llegar allí via SCP — un comando de terminal que solo Cowork puede ejecutar automáticamente.
 
 ---
 
@@ -51,7 +53,7 @@ PASO 2 — Generar vídeo (Wan 2.2)
 → Confirmar con el usuario antes de continuar
 
 PASO 3 — Upscale + interpolación
-→ Vídeo ya está en ComfyUI/output/video/ localmente
+→ Vídeo ya está en ComfyUI/output/video/
 → Usar workflow mínimo inline (ver sección Video Upscale)
 → FPS multiplier: 2 (×2 FPS) o 4 (×4 FPS) según lo que pida el usuario
 ```
@@ -62,15 +64,21 @@ PASO 3 — Upscale + interpolación
 
 ## Cómo subir imágenes a ComfyUI (img2img / i2v)
 
-Con ComfyUI en local, el upload funciona directamente via MCP:
+### vuski (local)
+
+`upload_image` funciona directamente con rutas Windows:
 
 ```
-upload_image(source_path="C:\\Users\\[username]\\...\\imagen.png", filename="nombre.png")
+upload_image(source_path="C:\\Users\\vuski\\Documents\\...\\imagen.png", filename="nombre.png")
 ```
 
-La imagen queda disponible en `ComfyUI/input/` y se referencia por nombre en el nodo `LoadImage`.
+La imagen queda en `ComfyUI/input/` y se referencia por nombre en el nodo `LoadImage`.
 
-**CRÍTICO:** Si el MCP falla con rutas locales, verificar que ComfyUI esté corriendo antes de intentar el upload.
+### framemov (remoto)
+
+`upload_image` no puede leer rutas Linux del entorno de Claude. Opciones:
+- **Cowork (automático):** ejecuta SCP desde PowerShell para copiar la imagen de vuski a framemov
+- **Manual:** el usuario copia la imagen a `\\100.102.173.86\comfyui-output\input\` y confirma
 
 ---
 
@@ -84,7 +92,9 @@ La imagen queda disponible en `ComfyUI/input/` y se referencia por nombre en el 
 ```
 
 ### Vídeos
-Los vídeos se guardan en `ComfyUI\output\video\` localmente. Accesibles directamente desde el explorador de archivos.
+Los vídeos se guardan en `ComfyUI\output\video\`.
+- **vuski:** accesibles directamente en `C:\Users\vuski\Documents\ComfyUI_windows_portable\ComfyUI\output\video\`
+- **framemov:** accesibles via `\\100.102.173.86\comfyui-output\video\`
 
 ---
 
@@ -101,7 +111,7 @@ Los vídeos se guardan en `ComfyUI\output\video\` localmente. Accesibles directa
 
 ## Flux 2 Klein 9B — Text to Image
 
-**Archivo:** `image_flux2_text_to_image_9b.json`  
+**Archivo:** `image_flux2_text_to_image_9b.json`
 **Uso:** Generar imágenes desde texto. Es un subgraph — el nodo exterior es `75`.
 
 ### Modelos necesarios
@@ -131,7 +141,7 @@ Los vídeos se guardan en `ComfyUI\output\video\` localmente. Accesibles directa
 
 ## Flux 2 Klein 9B — Img2Img / Edición con referencia
 
-**Archivo:** `image_flux2_klein_image_edit_9b_base.json`  
+**Archivo:** `image_flux2_klein_image_edit_9b_base.json`
 **Uso:** Editar o transformar una imagen existente usando otra como referencia.
 
 ### Modelos necesarios
@@ -226,7 +236,7 @@ El workflow `Video-Upscaler-Next-Diffusion.json` tiene nodos de UI (Labels rgthr
 ```json
 {
   "1": {"class_type": "VHS_LoadVideoPath", "inputs": {
-    "video": "C:\\Users\\[username]\\Documentos\\ComfyUI_windows_portable\\ComfyUI\\output\\video\\FILENAME.mp4",
+    "video": "C:\\Users\\vuski\\Documents\\ComfyUI_windows_portable\\ComfyUI\\output\\video\\FILENAME.mp4",
     "force_rate": 0, "custom_width": 0, "custom_height": 0,
     "frame_load_cap": 0, "skip_first_frames": 0, "select_every_nth": 1
   }},
@@ -247,6 +257,9 @@ El workflow `Video-Upscaler-Next-Diffusion.json` tiene nodos de UI (Labels rgthr
   }}
 }
 ```
+
+Para framemov, sustituir la ruta de `VHS_LoadVideoPath` por:
+`D:\\pinokio\\api\\comfy.git\\ComfyUI\\output\\video\\FILENAME.mp4`
 
 ### Valores a sustituir
 
