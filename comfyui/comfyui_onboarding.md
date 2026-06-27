@@ -8,52 +8,43 @@ Setup, instalación, modelos y uso con Claude Desktop via MCP.
 
 ## Instalación
 
-ComfyUI está instalado via **Pinokio** en el PC principal (framemov).
+ComfyUI está instalado via **Windows Portable** en el PC principal (vuski — PC nuevo local).
 
 | Ruta | Descripción |
 |---|---|
-| `D:\pinokio\api\comfy.git\ComfyUI` | Raíz de ComfyUI |
-| `D:\pinokio\api\comfy.git\venv` | Entorno virtual Python (3.11.9) |
-| `D:\pinokio\api\comfy.git\app\models` | Modelos (checkpoints, VAE, LoRAs, etc.) |
-| `D:\pinokio\api\comfy.git\ComfyUI\custom_nodes` | Nodos personalizados |
-| `D:\pinokio\api\comfy.git\ComfyUI\output` | Imágenes generadas |
-| `D:\pinokio\api\comfy.git\ComfyUI\user\default\workflows\` | Workflows guardados |
-
-**Python ejecutable:** `D:\pinokio\api\comfy.git\venv\Scripts\python.exe`
+| `C:\Users\[username]\Documentos\ComfyUI_windows_portable\ComfyUI` | Raíz de ComfyUI |
+| `C:\Users\[username]\Documentos\ComfyUI_windows_portable\python_embeded` | Python embebido |
+| `C:\Users\[username]\Documentos\ComfyUI_windows_portable\ComfyUI\models` | Modelos |
+| `C:\Users\[username]\Documentos\ComfyUI_windows_portable\ComfyUI\custom_nodes` | Nodos personalizados |
+| `C:\Users\[username]\Documentos\ComfyUI_windows_portable\ComfyUI\output` | Imágenes y vídeos generados |
+| `C:\Users\[username]\Documentos\ComfyUI_windows_portable\ComfyUI\user\default\workflows\` | Workflows guardados |
 
 ---
 
 ## Arrancar ComfyUI
 
-### Opción 1 — Script local (doble click)
-Archivo en el escritorio: `arrancar_comfyui.bat`
-
-```bat
-@echo off
-D:\pinokio\api\comfy.git\venv\Scripts\python.exe D:\pinokio\api\comfy.git\ComfyUI\main.py --listen 0.0.0.0 --port 8188 --extra-model-paths-config D:\pinokio\api\comfy.git\ComfyUI\extra_model_paths.yaml --database-url sqlite:///D:\pinokio\api\comfy.git\ComfyUI\user\comfyui_standalone.db
-pause
+Doble click en:
+```
+C:\Users\[username]\Documentos\ComfyUI_windows_portable\run_nvidia_gpu.bat
 ```
 
-**IMPORTANTE:** El flag `--extra-model-paths-config` es necesario para que ComfyUI vea todos los modelos en `app\models\`. Sin él solo ve `ae.safetensors` en VAE y no encuentra `flux2-vae.safetensors`.
+ComfyUI arranca en `http://127.0.0.1:8188` y queda accesible localmente.
 
-### Opción 2 — Arranque remoto via SSH (desde PC de casa)
-Ver `comfyui/comfyui_remote_setup.md` para el setup completo de SSH + Tailscale.
-
-```powershell
-ssh -i "$env:USERPROFILE\.ssh\comfyui_key" framemov@100.102.173.86 "powershell -File C:\Users\framemov\Desktop\arrancar_comfyui_bg.ps1"
-```
+**Nota:** Usar `run_nvidia_gpu.bat` para generación con GPU. `run_cpu.bat` solo para pruebas sin GPU.
 
 ---
 
 ## Workflows guardados
 
-Los workflows están en `D:\pinokio\api\comfy.git\ComfyUI\user\default\workflows\`.
+Los workflows están en `ComfyUI\user\default\workflows\`.
 
 Verificar que ComfyUI los ve: `http://127.0.0.1:8188/api/userdata?dir=workflows&recurse=true`
 
-Workflows disponibles:
-- `flux2_klein_img2img_editing.json` — Flux 2 Klein img2img con referencia
+Workflows disponibles (nombres exactos):
+- `image_flux2_text_to_image_9b.json` — Flux 2 Klein 9B text to image
+- `image_flux2_klein_image_edit_9b_base.json` — Flux 2 Klein 9B img2img / edición
 - `video_wan2_2_14B_i2v.json` — Wan 2.2 14B image-to-video
+- `Video-Upscaler-Next-Diffusion.json` — Upscale vídeo + interpolación FPS
 
 Ver `comfyui/comfyui_workflows.md` para detalles de uso de cada workflow.
 
@@ -63,7 +54,7 @@ Ver `comfyui/comfyui_workflows.md` para detalles de uso de cada workflow.
 
 ComfyUI se controla desde Claude Desktop via el MCP `comfyui-mcp`.
 
-Config en `claude_desktop_config.json` (PC local, con ComfyUI en localhost):
+Config en `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
@@ -75,7 +66,7 @@ Config en `claude_desktop_config.json` (PC local, con ComfyUI en localhost):
 }
 ```
 
-Para uso remoto (desde otro PC), ver `comfyui/comfyui_remote_setup.md`.
+El MCP apunta a `localhost:8188` por defecto. No se necesita configuración adicional con ComfyUI corriendo en local.
 
 ---
 
@@ -99,14 +90,14 @@ Las siguientes skills están montadas localmente y Claude las lee automáticamen
 
 ## Modelos disponibles
 
-Los modelos están en `D:\pinokio\api\comfy.git\app\models\` y son visibles via `extra_model_paths.yaml`.
+Los modelos están en `ComfyUI\models\`.
 
 Subcarpetas principales:
-- `checkpoints/` — modelos base (Flux, SDXL, SD1.5...)
-- `vae/` — VAEs (incluye `flux2-vae.safetensors`, `ae.safetensors`, `wan_2.1_vae.safetensors`)
+- `checkpoints/` — modelos base
+- `vae/` — VAEs
 - `loras/` — LoRAs
 - `clip/` — encoders CLIP
-- `text_encoders/` — encoders de texto (T5, CLIP-L...)
+- `text_encoders/` — encoders de texto
 - `diffusion_models/` — modelos de difusión (formato unet)
 - `controlnet/` — modelos ControlNet
 - `upscale_models/` — modelos de upscale
@@ -115,19 +106,8 @@ Para ver qué hay instalado: `http://127.0.0.1:8188/models/vae` (o cualquier cat
 
 ---
 
-## Custom nodes instalados
-
-- **ComfyUI-Manager** — gestión de nodos
-- **comfyui_controlnet_aux** — preprocesadores ControlNet
-- **comfyui-NDI-main** — salida NDI (puede fallar al arrancar, no crítico)
-- **websocket_image_save** — guardado via websocket
-
----
-
 ## Notas de uso
 
-- ComfyUI corre en el puerto **8188**
-- El flag `--listen 0.0.0.0` es necesario para acceso remoto
-- El flag `--extra-model-paths-config` es necesario para ver todos los modelos
-- Si falla al arrancar por conflicto de base de datos, usar `--database-url` con ruta alternativa
-- Pinokio no funciona para arrancar ComfyUI — usar el `.bat` o SSH remoto
+- ComfyUI corre en el puerto **8188** en localhost
+- El output de vídeos está en `ComfyUI\output\video\` accesible localmente
+- Con instalación local, el upload de imágenes via MCP funciona con rutas Windows directas — no se necesita SCP ni Cowork
