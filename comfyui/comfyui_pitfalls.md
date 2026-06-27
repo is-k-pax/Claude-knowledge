@@ -43,3 +43,22 @@ Subir la imagen manualmente via SCP desde el PC de casa:
 scp -i "$env:USERPROFILE\.ssh\comfyui_key" "<ruta_local>" "framemov@100.102.173.86:D:/pinokio/api/comfy.git/ComfyUI/input/<nombre>.png"
 ```
 O subirla directamente desde la web UI de ComfyUI: `http://100.102.173.86:8188`.
+
+---
+
+## Las imágenes generadas no se muestran inline en Claude Desktop
+
+**Síntoma:**
+`convert_image` y `view_image` devuelven la imagen correctamente (se ve en el contexto interno de Claude) pero el usuario no la ve en el chat de Claude Desktop.
+
+**Causa:**
+Claude Desktop no renderiza los bloques de imagen que vienen como resultado de herramientas MCP. Es una limitación del cliente de escritorio — las image content blocks de tool results no se muestran visualmente al usuario.
+
+**Fix:**
+Ver la imagen generada por cualquiera de estas vías:
+- **URL directa en el navegador:** `http://127.0.0.1:8188/view?filename=<nombre>.png&subfolder=&type=output`
+- **Interfaz web de ComfyUI:** `http://127.0.0.1:8188` → historial de outputs
+- **Carpeta local (vuski):** `C:\Users\vuski\Documents\ComfyUI_windows_portable\ComfyUI\output\`
+- **Carpeta compartida (framemov):** `\\100.102.173.86\comfyui-output\`
+
+**Nota:** `view_image` además tiene un límite de 1MB — los PNG de 1024×1024 suelen pesar ~1.8MB y fallan. Usar siempre `convert_image` (jpeg, quality 75) antes de intentar mostrar.
