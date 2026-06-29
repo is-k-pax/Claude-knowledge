@@ -2,7 +2,7 @@
 
 Errores y trampas descubiertas trabajando con TD y LOPs. Antes de asumir que tu código está mal, revisa esta lista.
 
-**Última revisión:** 27 de junio de 2026.
+**Última revisión:** 29 de junio de 2026.
 
 ---
 
@@ -13,81 +13,96 @@ Al crear operadores con `comp.create(tipo, 'nombre')`, TD los coloca en `x=0, y=
 **Siempre** asignar `nodeX` y `nodeY` inmediatamente después de crear cada operador. Primero leer dónde están los operadores existentes para elegir una zona libre:
 
 ```python
-# Leer posiciones existentes antes de crear
 for c in comp.children:
     print(f"{c.name}: x={c.nodeX}, y={c.nodeY}")
 
-# Crear y posicionar en cadena lógica
 n1 = comp.create(speedCHOP, 'mi_speed')
-n1.nodeX = -575
-n1.nodeY = 650
-
-n2 = comp.create(lagCHOP, 'mi_lag')
-n2.nodeX = -375
-n2.nodeY = 650
+n1.nodeX = -575; n1.nodeY = 650
 ```
 
-**Convención de espaciado:** separar nodos ~200 unidades en X, ~125 en Y. Los nodos de una misma cadena van en fila horizontal con el mismo Y.
+**Convención de espaciado:** ~200 unidades en X, ~125 en Y. Misma cadena → mismo Y.
 
 ---
 
 ## ⚠️ net.apply() trunca expresiones Python con comas
 
-`net.apply()` parsea el texto de la red y tiene problemas con expresiones Python que contienen **comas dentro de paréntesis** — las interpreta como separadores de argumento del formato de señal y trunca la expresión.
+`net.apply()` parsea el texto de la red y trunca expresiones con **comas dentro de paréntesis**.
 
-**Síntoma:** TD reporta `SyntaxError: '(' was never closed` en el parámetro que contenía la expresión. El valor queda a 0.
+**Síntoma:** `SyntaxError: '(' was never closed`. El valor queda a 0.
 
-**Ejemplo problemático:**
-```
-vec2valuex:=tdu.remap(math.sin(op('x')['chan1'] * 6.28), -1, 1, 3.0, 5.5)
-```
-net.apply() trunca en la primera coma y deja:
-```
-tdu.remap(math.sin(op('x')['chan1'] * 6.28
-```
-
-**Fix:** para parámetros con expresiones Python complejas (las que contienen comas), **no usar net.apply()** — setear el `.expr` directamente con `td_code`:
-
+**Fix:** usar `td_code` directamente para expresiones complejas:
 ```python
-op('/mi/comp').par['vec2valuex'].expr = "tdu.remap(math.sin(op('power_lfo_null')['chan1'] * 6.2831853), -1, 1, 3.0, 5.5)"
+op('/mi/comp').par['vec2valuex'].expr = "tdu.remap(math.sin(op('x')['chan1'] * 6.28), -1, 1, 3.0, 5.5)"
 ```
 
-**Regla práctica:** `net.apply()` es seguro para valores numéricos y expresiones simples sin comas. Para expresiones con `tdu.remap()`, funciones con múltiples args, o cualquier cosa con comas internas → usar `td_code` directamente.
+**Regla:** `net.apply()` OK para valores numéricos y expresiones simples. Comas internas → `td_code`.
 
 ---
 
 ## Threading y cook
 
-- `time.sleep()` >1s dentro de `execute_python` **BLOQUEA el cook thread**. Bridges desconectan, tool_use queda stuck, MCP da timeout a 4 minutos. Solución: queries cortas en múltiples invocaciones separadas del MCP.
-- TD no es multithread en cooking. Lo costoso: asincrónico o aceptar frames perdidos.
+- `time.sleep()` >1s dentro de `execute_python` **BLOQUEA el cook thread** → timeout MCP.
+- TD no es multithread. Lo costoso: asincrónico o aceptar frames perdidos.
 
 ## Agent LOP
 
-- `Active` flickea a False entre tool_calls batcheados — usar combinación con `Agentstatus` y `turn_table.numRows`
-- `conversation_dat` puede parecer vacío visualmente. La verdad: `_api_messages` interno o `turn_table`
+- `Active` flickea a False entre tool_calls batcheados
 - `Clearsession.pulse()` en flight → orphaned callback 20-30s. Fix: `reinitextensions.pulse()`
 - Tras cambios en `seq.Tool` o `system_message`: SIEMPRE `reinitextensions.pulse()`
-- `Maxresultchars` default 16K, clampMax 100K — trunca silenciosamente. Poner 250000
+- `Maxresultchars` default 16K — trunca silenciosamente. Poner 250000
 - Para añadir slot: `ag.par.Tool.sequence.numBlocks = N` (no `ag.par.Tool.val = N`)
-- El agente lee de `<agent>/system_prompt`, no del DAT en `Systemmessagedat`. Propagar a ambos.
 
 ## Tool DAT v2.4.0
 
 - Cada Tool DAT necesita `Toolname` DISTINTO. Default `edit_td_dat` → `DUPLICATE TOOL — ALL TOOLS DISABLED`
-- `Responseverbosity: minimal` inútil para lecturas — usar `full`
 - `view_range` solo aplica a Text DAT, no Table DAT
-- `replace_all_table` con `content=[[a,b],...]` reescribe el header
-- `insert_row(row=N)` con N > Maxrows da error críptico — usar tool_td_mod
 
 ## Tool Manager
 
 - Añadir slots: `Refreshtools.pulse()` + `Restartserver.pulse()`
 - `server_state` JSON es la verdad, no el parámetro `Running`
-- Save preset 2 veces rápido puede sobrescribir. Cambiar `Presetname` antes
+- "Server shutting down" en Textport = normal al cerrar conexión MCP, no es error
 
 ## Tool VFS
 
 - `Checkvfs.pulse()` con `Createifmissing=True` — sin esto el Agent reporta "no tools"
+
+## ⚠️ Copiar ops LOPs entre containers: copy() va al src, no al target
+
+`src.copy(parent, name='nuevo')` crea el op DENTRO del src en lugar del container destino.
+
+**Síntoma:** op aparece en `/dot_lops/custom_operators/<nombre>/<nombre>4` en vez del destino.
+
+**Fix — usar loadTox():**
+```python
+import os
+tmp = 'C:/Users/<user>/AppData/Local/Temp/lop_copy'
+os.makedirs(tmp, exist_ok=True)
+src = op('/dot_lops/custom_operators/mi_op')
+src.save(f'{tmp}/mi_op1.tox')
+container = me.parent()  # desde td_code
+new_op = container.loadTox(f'{tmp}/mi_op1.tox')
+new_op.name = 'mi_op1'
+new_op.nodeX = X; new_op.nodeY = Y
+```
+
+## ⚠️ getattr(tm.par, 'Tool10op') no funciona tras insertBlock
+
+Tras `seq.insertBlock()`, los nuevos pars no son accesibles via `getattr`.
+Usar: `list(tm.pars('Tool10op'))[0]`
+
+Los pars OP pueden perderse tras `cook(force=True)` — reasignar siempre después del cook.
+
+## ⚠️ td_code corre en sandbox — cambios no persisten al container real
+
+Los ops creados con `td_code` NO son visibles desde `network_context` ni desde TD.
+
+**Para crear ops que persistan:** usar `network_context` o el método `loadTox()` desde `td_code`.
+
+## ⚠️ seq.insertBlock(N) con N = numBlocks da error
+
+`insertBlock` acepta índices 0 a numBlocks-1.
+Para insertar al final: `seq.insertBlock(seq.numBlocks - 1)`
 
 ## Operadores TD genéricos
 
@@ -95,7 +110,6 @@ op('/mi/comp').par['vec2valuex'].expr = "tdu.remap(math.sin(op('power_lfo_null')
 - DAT Execute con re-entrancia: `me.storage["processing"] = True`
 - `webserverDAT.par.transparent` (minúscula)
 - `parameterexecuteDAT.par.pars` (no `parameters`)
-- Float custom pars con clampMin/clampMax: setear `.min` y `.max` explícitamente
 - textDATs como callbacks: `language=python` explícito (default text, silent skip)
 
 ## webserverDAT headers
@@ -105,36 +119,15 @@ response["Access-Control-Allow-Origin"] = "*"  # ✓
 # response["headers"] = {"...": "..."}          # ✗ NO como sub-dict
 ```
 
-## Regex en strings
-
-Backslashes en triple-quoted strings se sobre-escapan. Usar raw strings.
-
-## Numpy/torch ABI
-
-Subir numpy o torch puede romper ABI con Resemblyzer, Silero VAD, etc. Actualizar torch/torchaudio juntos desde Python Manager.
-
 ## ⚠️ Callbacks de datexecuteDAT NO disparan desde el MCP
 
-Cuando Claude hace `op(...).appendRow([...])` via MCP, la tabla se modifica pero los `datexecuteDAT` **NO reciben callbacks**. La mutación es real pero TD no la propaga.
+`op(...).appendRow([...])` via MCP modifica la tabla pero los `datexecuteDAT` no reciben callbacks.
 
-Desde el runtime interno de TD sí funcionan normalmente.
-
-**Síntoma:** testeas un watcher via MCP, no dispara, asumes que el código está mal. No lo está.
-
-**Cómo testear correctamente:**
-1. Llamar callback directamente: `mod._on_blast_complete(row_idx, log_dat)`
-2. Disparar el evento desde dentro de TD, no desde el MCP
-3. Verificar `dat.totalCooks` antes y después
-
-Lo mismo aplica a `parameterexecuteDAT` — no confiar en que `par.X = valor` desde MCP dispare un parexec.
+**Testear correctamente:** llamar callback directamente o disparar desde dentro de TD.
 
 ## me.storage para estado persistente en DAT executes
 
 ```python
-# MAL: se resetea en cada recompilación
-_PREV_ROWS = {}
-
-# BIEN: persiste entre recompilaciones y con el .toe
 def onTableChange(dat):
     key = "prev_rows__" + dat.path
     prev = me.fetch(key, None)
@@ -146,21 +139,16 @@ def onTableChange(dat):
 
 ## ⚠️ me.storage + absTime.frame: timestamps que sobreviven al reinicio de TD
 
-`me.storage` persiste con el `.toe` (se guarda y se recupera al reabrir). `absTime.frame` (o `me.time.frame`) es un contador de frames desde que arrancó el *proceso* de TD — se reinicia a un valor bajo cada vez que se abre TouchDesigner, sin relación con lo que haya guardado en `me.storage`.
+`me.storage` persiste con el `.toe`. `absTime.frame` se reinicia cada vez que arranca TD.
 
-Si guardas un `t_inicio = absTime.frame` para interpolar una animación (easing, slide, fade) y lo persistes en `me.storage`, y el `.toe` se guarda con esa animación a medias, al reabrir el proyecto — mismo PC o otro — el nuevo `absTime.frame` puede ser mucho menor que el `t_inicio` guardado. El cálculo de progreso (`t_raw = (ahora - t_inicio) / duracion`) sale muy negativo, y cualquier curva de easing no lineal (smoothstep, ease-in-out, etc.) que no esté pensada para inputs fuera de `[0, 1]` puede explotar a valores absurdos en vez de simplemente "no haber avanzado".
+Si guardas `t_inicio = absTime.frame` y el `.toe` se reabre, el nuevo frame puede ser menor → progreso negativo → valores absurdos en curvas de easing.
 
-**Síntoma:** un parámetro (posición, escala, opacidad) se va a un valor astronómico o sin sentido justo después de reabrir el proyecto, de forma intermitente — solo cuando el `.toe` se guardó con una transición en curso. Fácil de confundir con un valor corrupto o un typo si no se mira `me.storage` directamente.
-
-**Fix (patrón general):**
-
+**Fix:**
 ```python
 def tick():
     ahora = absTime.frame
     info = me.fetch('mi_animacion', None)
-    if info is None:
-        return
-
+    if info is None: return
     if ahora < info['t_inicio']:
         t_raw = 1.0
     else:
@@ -170,13 +158,8 @@ def tick():
 
 ## ⚠️ webrenderTOP scroll: anti-patrones que NO funcionan
 
-Cuando un `webrenderTOP` es el background de un `containerCOMP`, el scroll y los clicks NO se reenvían automáticamente al navegador CEF.
+El scroll y clicks NO se reenvían automáticamente del containerCOMP al webrenderTOP.
 
-**Lo que NO funciona:**
+**NO funciona:** `panelCHOP` + `chopexecuteDAT` con canal `wheel` (es pulso 0/1, no float), listeners JS `addEventListener('wheel')`, `sessionStorage` restore con `setTimeout`.
 
-- **`panelCHOP` + `chopexecuteDAT` calculando deltas del canal `wheel`**: el canal `wheel` es un pulso 0/1, no un float acumulativo. El delta siempre es ±1 y pierde la semántica de scroll.
-- **Listeners JS tipo `addEventListener('wheel')` en el HTML**: no reciben eventos del container TD.
-- **`sessionStorage` restore con `setTimeout` en el HTML**: lucha con el scroll del usuario y resetea la posición inesperadamente.
-- **Confiar en que el container reenvía eventos al webrender por defecto**: no lo hace.
-
-**Lo que SÍ funciona:** un `panelexecDAT` que vigila `lselect mselect rselect wheel insideu insidev` con `valuechange=True` y llama `web.interactMouse()` directamente. Ver snippet en td_snippets.md.
+**SÍ funciona:** `panelexecDAT` con `valuechange=True` llamando `web.interactMouse()` directamente.
