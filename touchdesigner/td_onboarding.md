@@ -2,8 +2,7 @@
 
 Cómo conectar Claude a un proyecto TouchDesigner via MCP y verificar que todo funciona.
 
-**Origen:** experiencia acumulada en proyectos con LOPs (dotsimulate), mayo-junio 2026.  
-**Última revisión:** 27 de junio de 2026.
+**Última revisión:** 29 de junio de 2026.
 
 ---
 
@@ -20,10 +19,10 @@ Cada operador LOP:
 
 Lo que LOPs resuelve: integrar agentes LLM en pipelines audiovisuales sin escribir un servidor por separado. El agente vive en el mismo grafo que el render, los inputs de mic, los outputs de pantalla.
 
-Doc oficial: https://docs.dotsimulate.com/ y https://dotdocs.netlify.app/  
+Doc oficial: https://docs.dotsimulate.com/  
 Mapa visual de operadores: https://docs.dotsimulate.com/map/
 
-> ⚠️ Tu modelo de entrenamiento probablemente no conoce LOPs. **NO puedes navegar la web desde dentro de TD** (los MCP tools no acceden a la web). Pide al usuario los textos de doc si los necesitas.
+> ⚠️ Tu modelo de entrenamiento probablemente no conoce LOPs. **NO puedes navegar la web desde dentro de TD** (los MCP tools no acceden a la web). Usa `search_web` si el Tool Manager está disponible.
 
 ---
 
@@ -45,15 +44,20 @@ El acceso base. Tools principales:
 
 ### Tool Manager (puerto 18766) — cuando está configurado
 
-Interface ampliada. Requiere `/claude_desktop` con los tres operadores.
-Ver `td_tool_manager_setup.md` para instrucciones de setup.
+Interface ampliada. Container portátil en `/claude_desktop_tool_manager`.  
+Ver `td_tool_manager_setup.md` para instrucciones de setup y lista completa de tools.
 
 | Tool | Para qué |
 |---|---|
-| `td_code` | Python con variables persistentes entre llamadas |
-| `td_mod / net` | Leer/escribir redes enteras como texto (`net.summary`, `net.apply`) |
-| `td_mod / catalog` | Buscar tipos de operadores |
-| `td_mod / search` | Descubrir módulos disponibles |
+| `td_code` | Python en TD (sandbox — cambios no persisten entre calls) |
+| `network_context` | Python con acceso completo al proyecto (más permisivo) |
+| `td_mod` | Módulos curados: catalog, net, search |
+| `edit_td_dat_*` | Leer/editar DATs con precisión (str_replace, insert, etc.) |
+| `file_tool_*` | Sistema de archivos virtual persistente dentro del container |
+| `get_recent_activity` | Ver actividad reciente del usuario en TD |
+| `capture_network_screenshot` | Screenshot de la red (requiere Pillow instalado) |
+| `search_web` | Búsqueda web via Serper (requiere API key) |
+| `ls`, `read`, `create`, `undo` | Navegar y editar la red |
 
 ---
 
@@ -70,11 +74,12 @@ print(f"LOPs encontrados: {len(lops)}")
 for p in lops: print(f"  {p}")
 
 # Verificar si Tool Manager está disponible
-claude_desktop = op('/claude_desktop')
-if claude_desktop:
-    tm = op('/claude_desktop/tool_manager1')
+tm_container = op('/claude_desktop_tool_manager')
+if tm_container:
+    tm = op('/claude_desktop_tool_manager/tool_manager1')
     if tm:
-        print(f"Tool Manager: {'Running' if tm.par.Running.val else 'Stopped'}")
+        print(f"Tool Manager: {'Running' if tm.par.Running.eval() else 'Stopped'}")
+        print(f"Server URL: {tm.par.Serverurl.eval()}")
 ```
 
 ---
@@ -82,13 +87,13 @@ if claude_desktop:
 ## 4 · Comportamiento al entrar a un proyecto LOPs nuevo
 
 1. **Smoke test:** verificar conexión
-2. **Verificar si existe `/claude_desktop`** con Tool Manager configurado
-   - Si existe y Running=True → usar `td_mod` y `td_code` además del MCP LOP
-   - Si existe pero parado → arrancar con `tm.par.Startserver.pulse()`
+2. **Verificar si existe `/claude_desktop_tool_manager`** con Tool Manager configurado
+   - Si existe y Running=True → 25 tools disponibles via touchdesigner-lop
+   - Si existe pero parado → `op('/claude_desktop_tool_manager/tool_manager1').par.Restartserver.pulse()`
    - Si no existe → ofrecerse a crearlo (ver `td_tool_manager_setup.md`)
 3. **Inventario:** listar LOPs y clasificar (agents, tools, etc.)
 4. **Leer documentos master** — pedir "¿hay un master.md o similar?"
-5. **No tocar producción.** Copiar operadores como `*_test`, usar Haiku
+5. **No tocar producción.** Copiar operadores como `*_test`, usar modelos baratos
 6. **`reinitextensions`** después de cualquier cambio estructural en un agente
 7. **Limpiar tras experimentos.** Borrar filas de test, destruir operadores copiados
 8. **No usar Claude Code** sin pedir permiso explícito
@@ -97,23 +102,23 @@ if claude_desktop:
 
 ## 5 · Instalar dependencias para LOPs correctamente
 
-Los LOPs con SideCar corren en un proceso aparte que usa el venv de `ChatTD.par.Python Venv`. Si haces `pip install` en otro Python, el SideCar no lo verá.
+Los LOPs con SideCar corren en un proceso aparte que usa el venv de `ChatTD`. Si haces `pip install` en otro Python, el SideCar no lo verá.
 
 **La forma correcta:**
-1. Abrir el operador Python Manager
+1. Abrir el operador Python Manager de LOPs
 2. Pulsar "Open Console" → terminal con el venv ya activo
-3. `pip install <paquete>`
+3. `uv pip install <paquete>` (LOPs usa UV por defecto)
 
-Si pip da `[WinError 5] Acceso denegado`:
+Si da `[WinError 5] Acceso denegado`:
 1. Cerrar TD completamente
 2. `taskkill /F /IM python.exe`
-3. Reabrir TD → Python Manager → Open Console → pip install
+3. Reabrir TD → Python Manager → Open Console → instalar
 
 ---
 
 ## 6 · Recursos externos
 
-- Doc oficial LOPs: https://docs.dotsimulate.com/ y https://dotdocs.netlify.app/
+- Doc oficial LOPs: https://docs.dotsimulate.com/
 - Mapa visual: https://docs.dotsimulate.com/map/
 - TD doc oficial: https://docs.derivative.ca/
 - dotsimulate Discord: soporte de comunidad
