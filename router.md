@@ -20,6 +20,7 @@
 | Shader para el container shader_changer_01 | touchdesigner/glsl/glsl_container_architecture.md | touchdesigner/glsl/glsl_writing_patterns.md |
 | Algo falla en un shader GLSL | touchdesigner/glsl/glsl_pitfalls.md | — |
 | Necesito código GLSL reutilizable | touchdesigner/glsl/glsl_snippets.md | — |
+| Trabajar con operadores POPX | touchdesigner/popx/popx_router.md | — |
 
 ### ComfyUI
 | Situación | Lee primero | Luego si necesitas más |
