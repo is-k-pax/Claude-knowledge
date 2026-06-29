@@ -1,129 +1,120 @@
-# TouchDesigner — Tool Manager Setup (Claude Desktop)
+# Tool Manager Setup — Claude Desktop ↔ TD
 
-Cómo montar la infraestructura Tool Manager en cualquier proyecto TD para
-que Claude tenga acceso ampliado via `td_mod` y `td_code`, además del MCP LOP base.
-
-**Origen:** sesión de experimentación junio 2026.  
-**Última revisión:** 27 de junio de 2026.
+**Qué es:** container TD portátil (`/claude_desktop_tool_manager`) que expone 25 tools via MCP.  
+**Puerto:** 18766 (streamable-http, Tool Manager LOP de dotsimulate LOPs)  
+**Última revisión:** 29 junio 2026
 
 ---
 
-## Por qué montar esto
-
-El MCP LOP (puerto 18555) da acceso a TD pero con limitaciones:
-- Cada `execute_python` es una llamada aislada — sin persistencia de variables entre llamadas
-- Para explorar la red hay que ir nodo a nodo
-
-Con Tool Manager + Tool TD Code + Tool TD Mod se añaden dos herramientas nuevas:
-
-| Tool | Qué aporta |
-|---|---|
-| `td_code` | Python con sesión persistente entre llamadas. Las variables definidas en una llamada existen en la siguiente. |
-| `td_mod` | Catálogo de módulos curados: `td_net` (leer/escribir redes como texto), `td_catalog` (buscar tipos de ops), `td_search` (descubrir módulos) |
-
-`td_net` es especialmente potente: `summary('/comp')` devuelve toda la red como texto estructurado, `apply('/comp', texto)` aplica cambios. Permite leer y modificar redes enteras sin ir nodo a nodo.
-
----
-
-## Setup: cómo preparar un proyecto nuevo
-
-### Paso 1 — Montar el COMP `/claude_desktop`
-
-En tu proyecto TD, crea un Container COMP llamado `claude_desktop` en la raíz `/`.
-Dentro coloca estos tres operadores LOPs (via OP Create Dialog):
-- `tool_td_mod` → quedará como `tool_td_mod1`
-- `tool_td_code` → quedará como `tool_td_code1`
-- `tool_manager` → quedará como `tool_manager1`
-
-No hace falta conectarlos entre sí visualmente — el Tool Manager los referencia por path.
-
-### Paso 2 — Decirle a Claude que entre y configure
-
-Con el MCP LOP (18555) activo, escribe:
-> "Entra en el proyecto y configura `/claude_desktop` para que pueda usar td_mod y td_code"
-
-Claude ejecutará el script de configuración automáticamente (ver sección siguiente).
-
-### Paso 3 — Añadir el servidor al claude_desktop_config.json
-
-El Tool Manager corre en el puerto **18766**. Añadir a `mcpServers`:
+## Conexión rápida (claude_desktop_config.json)
 
 ```json
-"td_tool_manager": {
+"touchdesigner-lop": {
   "command": "npx",
   "args": ["-y", "mcp-remote", "http://127.0.0.1:18766/mcp"]
 }
 ```
 
-Reiniciar Claude Desktop. A partir de ahí Claude tiene disponibles `td_mod` y `td_code`.
+Reiniciar Claude Desktop después de editar el config.
 
 ---
 
-## Script de configuración (Claude lo ejecuta via MCP LOP)
+## El container
 
-Este script asume que los tres operadores ya existen en `/claude_desktop`.
-Claude lo ejecuta via `execute_python` cuando se le pide configurar el setup.
+El container `claude_desktop_tool_manager` es un `.tox` portable — se puede copiar entre proyectos.  
+Vive en `/claude_desktop_tool_manager` (raíz del proyecto).  
+Dentro tiene 12 ops en el Tool sequence + ops de infraestructura.
 
+### Tools activas (25 en total)
+
+| Grupo | Tools | Para qué |
+|---|---|---|
+| **td_code** | `td_code` | Python con acceso completo a TD globals. Variables NO persisten entre llamadas. |
+| **td_mod** | `td_mod` | Módulos curados: `catalog` (buscar tipos de op), `net` (leer red), `search` (descubrir módulos) |
+| **tool_dat** | `edit_td_dat_*` (6 tools) | Leer/editar DATs con precisión: set_target, read_content, str_replace, insert, create_dat, check_target |
+| **tool_vfs** | `file_tool_*` (7 tools) | Sistema de archivos virtual dentro del container: read, write, list, search, delete, copy, move |
+| **tool_op_context** | `network_context` | Ejecutar Python con acceso al proyecto (más permisivo que td_code) |
+| **any** | `read`, `ls`, `str_replace`, `insert`, `create`, `undo` | Leer/editar DATs y archivos, navegar la red |
+| **tool_monitor** | `get_recent_activity`, `capture_network_screenshot` | Ver actividad reciente del usuario, capturar screenshot de la red |
+| **search_web** | `search_web` | Búsqueda web via Serper API (requiere API key configurada) |
+
+### Ops en el container pero fuera del sequence (infraestructura)
+- `token_count1` — estimar tokens de texto
+- `context_grabber1` — contexto multimodal (TOPs + DATs)
+- `tool_debugger1` — inspeccionar schemas de tools
+- `tool_registry1` — registro de tools disponibles
+- `log_receiver1` — logs centralizados de LOPs
+- `storage1` — storage backend (inactivo hasta conectar al graph)
+- `graph1` — RAG con grafos (desactivado — requiere Storage backend configurado)
+
+### VFS (sistema de archivos virtual)
+El `tool_vfs1` tiene un workspace virtual persistente dentro del container.  
+Archivos guardados aquí **viajan con el .tox** — disponibles en cualquier PC.  
+Para que yo lea un archivo en sesiones futuras: `file_tool_read_file lops_architecture.md`
+
+---
+
+## Arranque en cada sesión
+
+El container arranca automáticamente con TD.  
+Si el servidor está caído (Running: Off), desde Claude:
 ```python
-tm = op('/claude_desktop/tool_manager1')
-ext = tm.ext.ToolMCPBridgeEXT
-
-# 1. Conectar ChatTD (requerido para el servidor async)
-chattd = op('/dot_lops/ChatTD')
-if chattd:
-    tm.par.Chattd = chattd.path
-
-# 2. Asignar tool_td_mod1 al slot 0
-tm.par['Tool0op'] = '/claude_desktop/tool_td_mod1'
-tm.par['Tool0active'] = 'enabled'
-
-# 3. Expandir secuencia y asignar tool_td_code1 al slot 1
-seq = tm.par['Tool'].sequence
-if seq.numBlocks < 2:
-    seq.insertBlock(0)  # inserta al principio, desplaza el existente
-tm.par['Tool1op'] = '/claude_desktop/tool_td_code1'
-tm.par['Tool1active'] = 'enabled'
-
-# 4. Refresh de tools y arrancar servidor
-ext.Refreshtools()
-tm.par.Startserver.pulse()
-
-# Verificar
-print(f"Tool0op: {tm.par['Tool0op'].val}")
-print(f"Tool1op: {tm.par['Tool1op'].val}")
-print(f"Servidor URL: {tm.par.Serverurl.val}")
+op('/claude_desktop_tool_manager/tool_manager1').par.Restartserver.pulse()
 ```
 
-**Nota sobre el insertBlock:** al insertar en índice 0 la secuencia se desplaza:
-- El nuevo bloque vacío queda en Tool0
-- El bloque original (tool_td_mod) queda en Tool1
-Por eso tras el insert hay que reasignar Tool0op a tool_td_mod y Tool1op a tool_td_code.
-O insertar en índice 1 directamente si ya hay un bloque — pero insertBlock(1) da error si
-numBlocks es 1. La forma segura es insertar en 0 y reescribir ambos slots.
+Verificar conexión: pedir `get_recent_activity` — si responde, todo OK.
 
 ---
 
-## Verificar que todo funciona
+## Añadir nuevos ops al Tool Manager
 
-Desde Claude Desktop (chat nuevo tras reiniciar), buscar las herramientas:
-- `td_mod` con `action=call, function=search.index` → debe devolver los 3 módulos
-- `td_code` con `code="print(project.cookRate)"` → debe devolver el FPS
+1. Copiar el op LOP desde `/dot_lops/custom_operators/<nombre>` al container:
+```python
+src = op('/dot_lops/custom_operators/mi_op')
+container = op('/claude_desktop_tool_manager')
+new_op = src.copy(container, name='mi_op1')  # ← ESTO NO FUNCIONA (copy va al src)
+```
+**El método correcto** — guardar como tox temporal y cargar:
+```python
+import os
+tmp = 'C:/Users/<user>/AppData/Local/Temp/lop_copy'
+os.makedirs(tmp, exist_ok=True)
+src = op('/dot_lops/custom_operators/mi_op')
+src.save(f'{tmp}/mi_op1.tox')
+container = me.parent()  # desde td_code
+new_op = container.loadTox(f'{tmp}/mi_op1.tox')
+new_op.name = 'mi_op1'
+new_op.nodeX = X; new_op.nodeY = Y
+```
+
+2. Añadir al sequence del tool_manager:
+```python
+tm = op('/claude_desktop_tool_manager/tool_manager1')
+seq = tm.par.Tool.sequence
+seq.insertBlock(seq.numBlocks - 1)  # insertar al final
+# Después de cook:
+[p for p in tm.pars(f'Tool{seq.numBlocks-1}op')][0].val = new_op
+```
+
+3. Pulsar **Refresh Tools** en el tool_manager1 → pestaña Tools.
+4. Pulsar **Restart Server**.
+5. Reiniciar Claude Desktop para que detecte las nuevas tools.
 
 ---
 
-## Módulos disponibles en td_mod
+## Instalar dependencias Python para tools
 
-| Módulo | Para qué |
-|---|---|
-| `net` (`td_net`) | Leer redes: `net.summary('/comp')`. Escribir: `net.apply('/comp', texto)`. Crear ops: `net.mk(parent, tipo, nombre)`. Ver diff: `net.diff(antes, después)`. |
-| `catalog` (`td_catalog`) | Buscar tipos de operadores: `catalog.search('noise')`, `catalog.types('TOP')` |
-| `search` (`td_search`) | Descubrir módulos disponibles: `search.index()`, `search.find('query')`, `search.read('td_net')` |
+El container usa el venv de LOPs (`/dot_lops`).  
+Abrir Python Manager → Open Console → usar `uv pip install <paquete>`.  
+Ejemplo: `uv pip install Pillow` (necesario para `capture_network_screenshot`).
 
 ---
 
-## Notas importantes
+## Pitfalls específicos del Tool Manager
 
-- El servidor Tool Manager (18766) es **adicional** al MCP LOP (18555). Ambos pueden estar activos a la vez.
-- Si TD se reinicia, hay que volver a pulsar Start Server en tool_manager1 (o pedirle a Claude que lo haga via MCP LOP).
-- El ChatTD en `/dot_lops/ChatTD` es requerido para el servidor async. Si no existe, el servidor no arranca.
-- `td_code` tiene variables persistentes **dentro de una sesión** de Claude Desktop. Si cierras y abres Claude, la sesión se resetea.
+- `copy()` de op a otro container crea el op DENTRO del src, no en el target → usar `loadTox()` 
+- `getattr(tm.par, 'Tool10op')` no funciona tras insertBlock → usar `list(tm.pars('Tool10op'))[0]`
+- `seq.insertBlock(N)` con N = numBlocks da error — usar N = numBlocks - 1
+- Los ops creados con `td_code` NO persisten (td_code corre en sandbox) → usar `network_context` o `loadTox`
+- `tool_parameter` (para exponer pars de ops específicos a agentes) requiere configuración por op — no es genérico
+- "Server shutting down" en Textport = normal al cerrar conexión MCP, no es error
