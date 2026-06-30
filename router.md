@@ -22,6 +22,20 @@
 | Necesito código GLSL reutilizable | touchdesigner/glsl/glsl_snippets.md | — |
 | Trabajar con operadores POPX | touchdesigner/popx/popx_router.md | — |
 
+### StreamDiffusion (en TouchDesigner)
+| Situación | Lee primero | Luego si necesitas más |
+|---|---|---|
+| Algo falla en StreamDiffusion | streamdiffusion/sd_diagnostic.md | streamdiffusion/sd_pitfalls.md |
+| Qué modelos son compatibles entre sí | streamdiffusion/sd_model_compatibility.md | — |
+| Para qué sirve ControlNet / V2V / IP Adapter | streamdiffusion/sd_features_guide.md | streamdiffusion/sd_model_compatibility.md |
+| Configuración para un PC concreto | streamdiffusion/sd_hardware_configs.md | streamdiffusion/sd_model_compatibility.md |
+| Error de TensorRT o engine corrupto | streamdiffusion/sd_diagnostic.md | streamdiffusion/sd_pitfalls.md |
+| Qué ControlNet usar y con qué modelo | streamdiffusion/sd_model_compatibility.md | streamdiffusion/sd_features_guide.md |
+| Cuántos steps para un modelo | streamdiffusion/sd_model_compatibility.md | — |
+| Cómo funciona StreamV2V | streamdiffusion/sd_features_guide.md | — |
+| IP Adapter no funciona | streamdiffusion/sd_diagnostic.md | streamdiffusion/sd_model_compatibility.md |
+| VRAM insuficiente | streamdiffusion/sd_hardware_configs.md | streamdiffusion/sd_diagnostic.md |
+
 ### ComfyUI
 | Situación | Lee primero | Luego si necesitas más |
 |---|---|---|
