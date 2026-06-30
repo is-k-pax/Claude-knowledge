@@ -2,7 +2,7 @@
 
 Errores y trampas descubiertas trabajando con TD y LOPs. Antes de asumir que tu código está mal, revisa esta lista.
 
-**Última revisión:** 29 de junio de 2026.
+**Última revisión:** 30 de junio de 2026.
 
 ---
 
@@ -66,6 +66,33 @@ op('/mi/comp').par['vec2valuex'].expr = "tdu.remap(math.sin(op('x')['chan1'] * 6
 ## Tool VFS
 
 - `Checkvfs.pulse()` con `Createifmissing=True` — sin esto el Agent reporta "no tools"
+
+### ⚠️ VirtualFile creado manualmente no funciona — usar siempre el botón de la UI
+
+**Síntoma:** `virtualFile component missing VirtualFileExt extension`
+
+**Causa:** crear un baseCOMP a mano (con `comp.create(baseCOMP, 'mi_vfs')`) o copiar el virtualFile interno del tool_vfs (con `parent.copy(internal_vf)`) no inicializa la extensión VirtualFileExt. Los parámetros de extensión (`ext0object`, `ext0promote`) se copian correctamente pero la extensión no se carga — `comp.extensions` devuelve `[]`. Ni `reinitextensions.pulse()` ni toggle de `Createifmissing` desde código resuelven el problema.
+
+**Fix:**
+1. En la UI de TD, ir al tool_vfs → Settings → pulsar **Create External VirtualFile**
+2. Esto crea un `<nombre>_virtualFile` al nivel padre con extensiones correctamente inicializadas
+3. Verificar que el parámetro **VirtualFile Component** apunta al COMP externo generado (no al virtualFile interno del tool_vfs)
+4. Si apunta al interno (por haberlo cambiado con código), redirigir al externo
+
+**Regla:** nunca crear el VirtualFile component desde Python. Siempre usar el botón de la UI.
+
+### ⚠️ tool_vfs en container externo: necesita estar conectado al tool_manager principal
+
+Un `tool_vfs` dentro de un container propio (fuera de `/claude_desktop_tool_manager/`) funciona, pero debe estar registrado como External Op Tool en el tool_manager principal. Un tool_manager separado corre en otro puerto MCP y Claude Desktop no lo ve salvo que se configure en el JSON de MCPs.
+
+**Setup correcto:**
+1. Crear tool_vfs en tu container
+2. Pulsar Create External VirtualFile desde la UI
+3. En el tool_manager principal → Tools → añadir External Op Tool apuntando al tool_vfs
+4. Si hay conflicto de nombres con otro tool_vfs, cambiar el Toolname (ej: `sd_knowledge`)
+5. Refresh Tools en el tool_manager
+
+---
 
 ## ⚠️ Copiar ops LOPs entre containers: copy() va al src, no al target
 
