@@ -9,13 +9,11 @@
 ### TouchDesigner
 | Situación | Lee primero | Luego si necesitas más |
 |---|---|---|
-| Entro a un proyecto TD | touchdesigner/td_onboarding.md | touchdesigner/td_lops_catalog.md |
-| Necesito código TD reutilizable | touchdesigner/td_snippets.md | — |
-| Algo falla en TD o LOPs | touchdesigner/td_pitfalls.md | — |
+| Entro a un proyecto TD (con LOPs) | touchdesigner/lops/lops_router.md | — |
+| Algo falla en LOPs, Tool Manager o tools | touchdesigner/lops/lops_router.md → lops_pitfalls.md | — |
+| Algo falla en TD genérico (no LOPs) | touchdesigner/td_pitfalls.md | — |
+| Necesito código TD reutilizable (no LOPs) | touchdesigner/td_snippets.md | — |
 | Crear un tool nuevo para un agente | touchdesigner/td_tool_creation.md | — |
-| Configurar Tool Manager para Claude Desktop | touchdesigner/td_tool_manager_setup.md | — |
-| Qué operadores LOPs existen y para qué sirven | touchdesigner/td_lops_catalog.md | — |
-| Usar Claude Code LOP | touchdesigner/td_claude_code.md | — |
 | Me piden un shader GLSL | touchdesigner/glsl/glsl_writing_patterns.md | touchdesigner/glsl/glsl_utils_reference.md |
 | Shader para el container shader_changer_01 | touchdesigner/glsl/glsl_container_architecture.md | touchdesigner/glsl/glsl_writing_patterns.md |
 | Algo falla en un shader GLSL | touchdesigner/glsl/glsl_pitfalls.md | — |
@@ -77,10 +75,10 @@ Cuando descubras algo nuevo durante una sesión, clasifícalo así:
 
 ### ¿Qué tipo de conocimiento es?
 
-**Un error y su solución** → `<programa>/pitfalls.md`
+**Un error y su solución** → `<programa>/pitfalls.md` (o `lops/lops_pitfalls.md` si es LOPs)
 Formato: título descriptivo, síntoma, causa, fix.
 
-**Código reutilizable** → `<programa>/snippets.md`
+**Código reutilizable** → `<programa>/snippets.md` (o `lops/lops_snippets.md` si es LOPs)
 Formato: título de lo que hace, cuándo usarlo, código mínimo.
 
 **Cómo conectar o configurar una herramienta** → `<programa>/onboarding.md`
@@ -90,7 +88,7 @@ Añadir a la sección relevante del onboarding existente.
 Crear si no existe. Formato: qué resuelve, pasos, código si aplica.
 
 **Conocimiento específico de un tema** → archivo dedicado
-Ejemplo: todo sobre STT → `touchdesigner/td_stt.md`
+Ejemplo: todo sobre STT → `touchdesigner/lops/lops_stt_tts.md`
 Ejemplo: exportar assets de Figma → `figma/figma_export.md`
 Solo crear archivo nuevo si el tema es lo bastante grande (>1KB) y distinto.
 
