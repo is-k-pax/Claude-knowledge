@@ -11,7 +11,6 @@
 |---|---|---|
 | Entro a un proyecto TD (con LOPs) | touchdesigner/lops/lops_router.md | — |
 | Algo falla en LOPs, Tool Manager o tools | touchdesigner/lops/lops_router.md → lops_pitfalls.md | — |
-| Algo falla en TD genérico (no LOPs) | touchdesigner/td_pitfalls.md | — |
 | Me piden un shader GLSL | touchdesigner/glsl/glsl_writing_patterns.md | touchdesigner/glsl/glsl_utils_reference.md |
 | Shader para el container shader_changer_01 | touchdesigner/glsl/glsl_container_architecture.md | touchdesigner/glsl/glsl_writing_patterns.md |
 | Algo falla en un shader GLSL | touchdesigner/glsl/glsl_pitfalls.md | — |
