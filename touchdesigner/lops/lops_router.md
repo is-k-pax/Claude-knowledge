@@ -47,7 +47,7 @@ Estas son las que necesitas conocer, por orden de uso:
 | `capture_network_screenshot` | Screenshot de la red | Requiere Pillow en el venv |
 | `get_recent_activity` | Ver qué ha tocado el usuario recientemente | — |
 
-### Para gestionar archivos en el VFS
+### Para gestionar archivos en el VFS del Tool Manager
 
 | Tool | Para qué | Cuidado |
 |---|---|---|
@@ -55,6 +55,22 @@ Estas son las que necesitas conocer, por orden de uso:
 | `file_tool_read_file` | Leer archivo | Path = nombre del archivo directamente |
 | `file_tool_write_file` | Escribir/crear archivo | Crea carpetas automáticamente |
 | `file_tool_search_files` | Buscar texto en archivos | — |
+
+### Leer un VFS externo (no el del Tool Manager)
+
+`file_tool_*` solo ve el VFS interno del Tool Manager. Si el proyecto tiene
+otro operador VFS (ej. en `/project1/alguna_carpeta/sd_tool_vfs1_virtualFile`),
+léelo directamente con `td_code` o `network_context`:
+
+```python
+vfs_op = op('/project1/ruta/al/virtualFile')
+for f in vfs_op.vfs:
+    content = bytes(f.byteArray).decode('utf-8')
+    print(f"=== {f.name} ===")
+    print(content)
+```
+
+No hace falta añadir el operador al Tool Manager.
 
 ### Otras disponibles
 
