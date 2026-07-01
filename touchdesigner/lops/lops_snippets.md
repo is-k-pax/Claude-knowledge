@@ -8,6 +8,9 @@ Código reutilizable para tareas comunes con LOPs.
 
 ## Crear tools dedicadas con el operador Any
 
+> ⚠️ Antes de usar: verificar que `AnyExt` tiene el parche de `_dispatcher()` (ver lops_pitfalls.md).
+> Sin él las tools se registran pero no se ejecutan.
+
 **Cuándo:** necesitas tools con schemas propios (nombre, parámetros tipados) en vez de un genérico "ejecuta Python". Ideal para Tool Manager → Claude Desktop / MCP.
 
 **Patrón:** copiar el operador `Any` desde `/dot_lops/custom_operators/any`, escribir un módulo Python en su DAT `module`, y apuntar `Moduledat` → `./module`.
