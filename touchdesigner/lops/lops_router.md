@@ -29,6 +29,42 @@ file_tool_read_file("nombre.md")     ← para leer cualquier archivo
 
 ---
 
+## Documentación — jerarquía de búsqueda
+
+No resolver de memoria. Según qué necesites, el orden correcto es:
+
+### Operadores nativos de TD (TOP, CHOP, SOP, POP, COMP...)
+
+Usar directamente `touchdesigner_docs_search_touchdesigner_docs` /
+`touchdesigner_docs_get_full_touchdesigner_doc`. Es una capacidad nativa del
+conector `touchdesigner-lop` — **no** un operador del proyecto, no depende
+del VFS ni de si hay LOPs instalado. Indexa docs.derivative.ca (parámetros
+exactos, tipos, categorías, familias). Verificado con Noise TOP y con la
+familia POP completa (build 2025.31550, incluye noisePOP con ~50 parámetros).
+
+No hace falta `web_fetch` ni el repo para esto — es la vía más directa.
+
+### Operadores LOPs (Agent, TTS, Tool Manager, Any, MCP Client...)
+
+Tres pasos, en este orden:
+
+1. **VFS del Tool Manager** — `file_tool_read_file("lops_architecture.md")`.
+   Catálogo completo (88 operadores, categorizados: controllers, modifiers,
+   pipelines, retrievers, settings) extraído de docs.dotsimulate.com.
+   Más rápido que red y ya verificado que existe en el VFS.
+2. **`web_fetch` a docs.dotsimulate.com** — si necesitas detalle que no está
+   en el catálogo (parámetros exactos, ejemplos de uso). Usar fetch directo
+   (urllib), no búsqueda site-scoped — ese sitio es JS-rendered y la
+   búsqueda scopeada no es fiable.
+3. **Este repo** — si es un pitfall, patrón o snippet ya documentado por una
+   sesión anterior (ver `lops_pitfalls.md`, `lops_snippets.md`).
+
+### Patrones, pitfalls, snippets ya conocidos
+
+Repo `is-k-pax/Claude-knowledge` — ver tabla "Qué documento leer" más abajo.
+
+---
+
 ## Tools del Tool Manager — las que usarás para trabajar
 
 El Tool Manager expone ~25 tools via MCP (puerto 18766).
