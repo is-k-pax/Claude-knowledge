@@ -2,7 +2,87 @@
 
 Código reutilizable para tareas comunes con LOPs.
 
-**Última revisión:** junio 2026.
+**Última revisión:** julio 2026.
+
+---
+
+## Crear tools dedicadas con el operador Any
+
+**Cuándo:** necesitas tools con schemas propios (nombre, parámetros tipados) en vez de un genérico "ejecuta Python". Ideal para Tool Manager → Claude Desktop / MCP.
+
+**Patrón:** copiar el operador `Any` desde `/dot_lops/custom_operators/any`, escribir un módulo Python en su DAT `module`, y apuntar `Moduledat` → `./module`.
+
+```python
+# Estructura del módulo (texto completo del DAT 'module'):
+import json
+
+name = "mi_modulo"
+description = "Descripción corta"
+category = "tool"
+params = []  # custom UI pars si necesitas
+
+def get_tools(ext):
+    """ext = AnyExt instance. Devuelve lista de dicts con tool definitions."""
+    return [
+        {
+            "name": "mi_tool",
+            "description": "Qué hace esta tool",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "param1": {"type": "string", "description": "..."},
+                    "param2": {"type": "number", "description": "..."}
+                },
+                "required": ["param1"]
+            }
+        }
+    ]
+
+def handle_mi_tool(ext, tool_call):
+    """Handler: ext = AnyExt, tool_call.function.arguments = JSON string."""
+    args = json.loads(tool_call.function.arguments)
+    p1 = args['param1']
+    # ... lógica con op() ...
+    return {"status": "success", "message": f"Done: {p1}"}
+```
+
+**Setup después de escribir el módulo:**
+```python
+at = op('/ruta/al/any_operator')
+at.par.Moduledat = './module'
+at.par.Reload.pulse()
+# Verificar: at.GetTool() → lista de tool dicts
+```
+
+**Conectar al Tool Manager:**
+```python
+tm = op('/ruta/tool_manager1')
+slot_pars = [p for p in tm.pars('Tool0op')]
+slot_pars[0].val = at
+tm.par.Refreshtools.pulse()
+# Después: tm.par.Restartserver.pulse() o Startserver.pulse()
+```
+
+**Protocolo GetTool — formato devuelto por el Any:**
+```python
+{
+    'tool_definition': {
+        'type': 'function',
+        'function': {
+            'name': 'tool_name',
+            'description': '...',
+            'parameters': { ... JSON Schema ... }
+        }
+    },
+    'callback_info': {
+        'handler': <callable>,
+        'response_format': 'json'
+    }
+}
+```
+
+Convención de handler: `handle_{tool_name}(ext, tool_call)`.
+El handler siempre recibe `ext` (AnyExt) como primer arg.
 
 ---
 
