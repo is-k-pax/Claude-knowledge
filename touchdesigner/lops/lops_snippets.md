@@ -322,3 +322,53 @@ def onColChange(dat, cols): pass
 target = op(w.par.dat.eval())
 w.store('prev_rows__' + target.path, target.numRows)
 ```
+
+---
+
+## Escalar y codificar una imagen para respuesta MCP a un cliente móvil
+
+**Cuándo:** un tool MCP necesita devolver una imagen a un cliente que la va a mostrar en pantalla pequeña (Claude Desktop en móvil, apps de mensajería). Descargar la imagen original (varios MB) y dejar que el modelo la convierta a base64 es lento y gasta tokens de más. Escalar antes de codificar reduce el payload a 30-150 KB.
+
+**Requiere:** Pillow (`from PIL import Image`) en el Python de TD — normalmente ya viene incluido; verificar con `from PIL import Image; print(Image.__version__)`.
+
+```python
+import io
+import base64
+import urllib.request
+from PIL import Image
+
+def url_to_mobile_b64(url, max_dim=1024, quality=85):
+    """Descarga una URL, escala con Pillow y devuelve JPEG en base64.
+    max_dim es el mayor de ancho o alto. quality 1-95.
+    """
+    req = urllib.request.Request(url, headers={"User-Agent": "TD-LOPs/1.0"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        raw = r.read()
+    img = Image.open(io.BytesIO(raw))
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+    img.thumbnail((max_dim, max_dim))  # mantiene aspect ratio, no agranda
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=quality, optimize=True)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+```
+
+**En el handler de la tool:**
+```python
+def handle_enviar_imagen_movil(ext, tool_call):
+    args = json.loads(tool_call.function.arguments)
+    url = args.get("url", "")
+    if not url:
+        return {"ok": False, "error": "url vacia"}
+    try:
+        b64 = url_to_mobile_b64(url, max_dim=args.get("max_dim", 1024),
+                                 quality=args.get("quality", 85))
+        return {"ok": True, "base64": b64, "media_type": "image/jpeg",
+                "approx_kb": round(len(b64) * 0.75 / 1024, 1)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+```
+
+**Valores de referencia:** `max_dim=1024, quality=85` → 100-250 KB para fotos normales. `max_dim=512, quality=75-80` → 20-50 KB, suficiente para miniaturas de galería. Bajar `max_dim` primero si el payload sigue siendo grande; `quality` tiene menos impacto en el tamaño que la resolución.
+
+**Reutilizable también para escalar salida de un TOP interno** (en vez de una URL externa): sustituir la descarga por `top.save(temp_path, quality=quality)` o usar `top.numpyArray()` → `Image.fromarray()` si se quiere evitar el archivo temporal.
