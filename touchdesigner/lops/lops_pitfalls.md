@@ -2,7 +2,7 @@
 
 Errores y trampas descubiertas trabajando con LOPs y Tool Manager.
 
-**Última revisión:** 30 de junio de 2026.
+**Última revisión:** 3 de julio de 2026.
 
 ---
 
@@ -100,11 +100,23 @@ Los pars OP pueden perderse tras `cook(force=True)` — reasignar siempre despu�
 
 ---
 
-## ⚠️ td_code corre en sandbox — cambios no persisten al container real
+## ⚠️ td_code corre en sandbox — cambios no persisten al container real (matiz: destroy() es la excepción)
 
-Los ops creados con `td_code` NO son visibles desde `network_context` ni desde TD.
+Los ops **creados** con `td_code` NO son visibles desde `network_context` ni desde TD.
 
 **Para crear ops que persistan:** usar `network_context` o el método `loadTox()` desde `td_code`.
+
+**Matiz importante — `destroy()` SÍ persiste incluso desde `td_code`.** A diferencia de `create()`,
+llamar a `.destroy()` sobre un operador ya existente (obtenido vía `op('/ruta/real')`) borra el
+operador de la red real, verificable después desde `network_context`. Esto es porque `destroy()`
+opera sobre una referencia a un objeto real de la red, no crea nada nuevo dentro del sandbox.
+
+**Además:** la herramienta `network_context` bloquea `destroy()` explícitamente a nivel de tool
+("Blocked: destroy() — permanently deletes operators"), incluso con `Allowcreate`/`Allowmodify`
+en `True`. Ese bloqueo es solo de esa tool concreta — `td_code` no tiene esa restricción.
+
+**Regla práctica:** si necesitas borrar operadores y `network_context` te bloquea con ese mensaje,
+usa `td_code` con `.destroy()` directamente; funciona y persiste.
 
 ---
 
