@@ -141,6 +141,7 @@ Si te piden "mira qué hay en X" o "comprueba el valor de Y" → cualquiera de l
 | Speech-to-text o text-to-speech | lops_stt_tts.md |
 | Usar Claude Code LOP | lops_claude_code.md |
 | Configurar Tool Manager desde cero | lops_tool_manager.md |
+| Exponer un tool_manager a un cliente MCP externo (ChatGPT, etc.) | lops_external_mcp_exposure.md |
 | Trabajar con operadores POPX | ../popx/popx_router.md |
 
 ---
