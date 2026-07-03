@@ -3,7 +3,7 @@
 Errores y trampas concretas al escribir shaders para el container. Antes de asumir que tu lógica está mal, revisa esta lista.
 
 **Origen:** documentación del container shader_changer_01 (junio 2026)
-**Última revisión:** junio 2026
+**Última revisión:** julio 2026
 
 ---
 
@@ -118,3 +118,32 @@ Esto no es un error — es una técnica deliberada. El lod alto hace blur del fe
 ## `TDSimplexNoise` — no es `texture()`, es una función builtin TD
 
 `TDSimplexNoise(vec3 p)` devuelve un float en [-1, 1] aproximadamente. Es un builtin de TD, no necesita include ni textura. Los macros `NOISE1/2/3` en `uniforms_and_defines` son wrappers de esta función.
+
+---
+
+# GLSL TOP — pitfalls generales (cualquier proyecto, no específicos de shader_changer_01)
+
+Las secciones de abajo aplican a cualquier GLSL TOP nativo de TouchDesigner, sin depender de ningún container concreto.
+
+## `par.pixeldat`, no `par.pixelshader` — nombre real del parámetro que referencia el shader
+
+**Síntoma:** al inspeccionar un GLSL TOP por código (`hasattr(o.par, 'pixelshader')` o similar) da `False`, y se concluye erróneamente que el operador "no es un GLSL TOP estándar", que el shader está "encapsulado" en un COMP, o que hace falta buscar una arquitectura custom para localizar el código fuente.
+
+**Causa:** el parámetro del GLSL TOP que apunta al DAT con el código del pixel shader se llama **`pixeldat`**, no `pixelshader`. Es un nombre fácil de adivinar mal si no se verifica antes de asumir.
+
+**Fix — inspección correcta de un GLSL TOP:**
+```python
+o = op('/ruta/al/glsl_top')
+print(o.type, o.family, o.OPType)     # 'glsl', 'TOP', 'glslTOP' si es estándar
+print(o.par.mode.eval())              # 'vertexpixel', 'pixel', 'compute', etc.
+pd = o.par.pixeldat.eval()            # el DAT con el código fuente real
+print(pd.path, pd.type)               # normalmente un Text DAT normal, legible con .text
+print(pd.text)                        # código GLSL en texto plano
+```
+Otros parámetros relacionados en el mismo patrón: `vertexdat` (vertex shader) y `computedat` (compute shader), solo relevantes si `par.mode` los usa.
+
+**Regla:** antes de concluir que un GLSL TOP tiene una arquitectura "no estándar" o que su shader está inaccesible, verificar primero `o.par.pixeldat` — en la inmensa mayoría de los casos el operador es un GLSL TOP nativo perfectamente normal, y el shader es un Text DAT plano a un `.par.pixeldat.eval().text` de distancia. No hace falta listar children, buscar COMPs encapsulados, ni asumir un "shader system" custom si no se ha comprobado antes este parámetro.
+
+## Los tools de un agente sobre un GLSL TOP casi nunca tocan el shader — tocan uniforms
+
+Si un agente expone tools tipo `set_led_mode`, `set_color`, etc. sobre un GLSL TOP, lo normal es que esas tools cambien **uniforms** (páginas Colors/Vectors del propio GLSL TOP, ej. `par.color0rgbr`, `par.vec0valuex`), no el código GLSL. El shader es fijo y ya sabe interpretar esos números — no hace falta (ni tiene sentido) buscar relación entre el texto del shader y cada tool una a una; la relación está en qué uniform escribe cada handler, visible en el módulo Python del agente, no en el GLSL.
