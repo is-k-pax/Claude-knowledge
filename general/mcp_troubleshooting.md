@@ -2,7 +2,7 @@
 
 Troubleshooting de MCP transversal a todas las herramientas.
 
-**Ultima revision:** junio 2026.
+**Ultima revision:** julio 2026.
 
 ---
 
@@ -43,3 +43,25 @@ Troubleshooting de MCP transversal a todas las herramientas.
 **Sintoma:** las herramientas del MCP no aparecen o dan error al usarlas.
 **Causa:** configuracion incorrecta en claude_desktop_config.json o token expirado.
 **Fix:** verificar que el JSON es valido, que el token tiene scope "repo", y reiniciar Claude Desktop.
+
+---
+
+## tool_search solo devuelve un subconjunto de las tools de un servidor — no es cache desactualizada
+
+**Sintoma:** un servidor MCP con muchas tools registradas (ej. 8 tools en un Tool Manager LOP) solo
+muestra 4-5 de ellas al buscar. Reiniciar Claude Desktop no cambia nada. La lista visible varía
+entre búsquedas dentro de la misma conversación, lo que parece un problema de cache o de conexión
+intermitente.
+
+**Causa real:** `tool_search` tiene un parámetro `limit` con valor por defecto **5**. Si un servidor
+tiene más de 5 tools, solo se cargan las primeras 5 que matchean la query — el resto simplemente no
+se piden, no es que fallen ni que estén cacheadas de una versión antigua.
+
+**Fix:** pasar `limit` explícito, igual o mayor al número de tools del servidor:
+```
+tool_search(query="...", limit=20)
+```
+
+**Regla:** antes de diagnosticar un servidor MCP como roto, desconectado, o con cache corrupta
+porque "faltan tools", comprobar primero si `tool_search` se llamó con `limit` por defecto (5).
+No hace falta reiniciar Claude Desktop para este síntoma.
