@@ -89,6 +89,88 @@ El handler siempre recibe `ext` (AnyExt) como primer arg.
 
 ---
 
+## Motor de animación de un solo GLSL TOP, controlado por un agente (multi-modo, barato en tokens)
+
+**Cuándo:** un agente (Claude vía tool_agent) tiene que controlar algo que se anima con el tiempo
+(luces, visuales, cualquier cosa con movimiento) y NO debe implementar el loop de animación él mismo
+llamando tools repetidamente. El agente da una orden (modo + velocidad + colores), TD anima solo a
+framerate. Añadir un modo nuevo es añadir un `else if` al shader — no rehacer la arquitectura.
+
+**Por qué importa para el coste de tokens:** una vez el shader está escrito, pedir "luz calmada
+verde" o "neón rojo y azul, movimiento lento" son 2-4 llamadas de tool que solo cambian uniforms
+ya existentes — cero GLSL nuevo, cero tokens en reescribir shader. Solo hace falta tocar el shader
+si se pide un patrón visual que no está entre los modos ya implementados.
+
+**Patrón — 3 piezas:**
+
+1. **Un GLSL TOP con los modos empaquetados en un `vec4` uniform** (mode, speed/phase, intensity, unused) en vez de uniforms sueltos — así solo hace falta un bloque en la página Vectors del GLSL TOP:
+```glsl
+uniform vec4 uColor1;
+uniform vec4 uColor2;
+uniform vec4 uParams; // x=mode, y=speed/phase, z=intensity, w=unused
+
+layout(location = 0) out vec4 fragColor;
+
+void main() {
+    vec2 uv = vUV.st;
+    int mode = int(uParams.x);
+    float speed = uParams.y;
+    vec3 col = uColor1.rgb;
+
+    if (mode == 0) col = uColor1.rgb;                              // solid
+    else if (mode == 1) col = fract(speed) < 0.5 ? uColor1.rgb : vec3(0.0);  // blink
+    else if (mode == 2) col = uColor1.rgb * speed;                 // pulse (speed ya es 0-1 desde CPU)
+    else if (mode == 3) {                                          // gradient estático
+        float f = clamp((uv.x + uv.y) * 0.5, 0.0, 1.0);
+        col = mix(uColor1.rgb, uColor2.rgb, f);
+    }
+    else if (mode == 4) {                                          // rainbow
+        float hue = fract(uv.x + uv.y + speed);
+        col = TDHSVToRGB(vec3(hue, 1.0, 1.0));
+    }
+    else if (mode == 6) {                                          // noise orgánico
+        float n = TDSimplexNoise(vec3(uv * 3.0, speed)) * 0.5 + 0.5;
+        col = mix(uColor1.rgb, uColor2.rgb, n);
+    }
+
+    col *= uParams.z;  // intensity
+    fragColor = TDOutputSwizzle(vec4(col, 1.0));
+}
+```
+
+2. **Asignar uniforms del GLSL TOP por código** (Colors page para vec4 con nombre de color, Vectors page para vec4 genérico):
+```python
+glsl = dmx.create(glslTOP, 'led_engine')
+glsl.par.pixeldat = pixel_dat  # DAT con el shader de arriba
+glsl.par.outputresolution = 'custom'
+glsl.par.resolutionw = 64
+glsl.par.resolutionh = 64      # cuadrado si el POP de destino tiene escala 1:1 (ver lookuptex más abajo)
+
+glsl.par.color.sequence.numBlocks = 2
+glsl.par.color0name = 'uColor1'
+glsl.par.color1name = 'uColor2'
+glsl.par.vec0name = 'uParams'
+glsl.par.vec0valuex = 0    # mode
+glsl.par.vec0valuez = 1.0  # intensity
+glsl.cook(force=True)
+print(glsl.warnings())  # vacío = todos los uniforms asignados correctamente
+```
+
+3. **La animación corre sola vía expresión TD, no vía Python del agente.** Guardar la "velocidad" en `storage` del propio operador, y que el parámetro de fase sea una expresión que multiplica esa velocidad por `absTime.seconds`:
+```python
+glsl.store('rate', 0.0)
+glsl.par.vec0valuey.expr = "op('.').fetch('rate', 0.0) * absTime.seconds"
+glsl.par.vec0valuey.mode = ParMode.EXPRESSION
+```
+El handler de la tool del agente solo hace `glsl.store('rate', speed)` — TD calcula el resto cada frame sin más llamadas.
+
+**Nota sobre geometría:** si el TOP alimenta un `lookuptex POP` que usa `P(0)`/`P(1)` normalizados
+como UV (patrón común para tiras LED con Point POPs), la resolución del GLSL TOP debe coincidir con
+la forma real de la geometría (cuadrada si la escala del POP es 1:1, rectangular si no) — un TOP
+1×N (tipo "tira") solo es correcto si los puntos están dispuestos linealmente en un eje.
+
+---
+
 ## Listar todos los tools que ve un agente
 
 **Cuándo:** al entrar a un proyecto desconocido, o para verificar que tools tiene parseadas un Agent LOP tras cambios en su Tool sequence.
