@@ -28,6 +28,11 @@ Errores y trampas descubiertas trabajando con LOPs y Tool Manager.
 - Añadir slots: `Refreshtools.pulse()` + `Restartserver.pulse()`
 - `server_state` JSON es la verdad, no el parámetro `Running`
 - "Server shutting down" en Textport = normal al cerrar conexión MCP, no es error
+- **Tras ampliar el módulo de un `Any` (más tools en `get_tools()`)**, la página "Tool Toggle" del
+  tool_manager no sincroniza la lista de switches con solo `Refreshtools.pulse()` — hace falta
+  `Restartserver.pulse()` para que aparezcan los toggles individuales de las tools nuevas. Sin ese
+  restart, el toggle sigue mostrando solo las tools que existían en la última vez que se arrancó
+  el servidor, aunque `GetTool()` del `Any` ya devuelva la lista completa.
 
 ---
 
