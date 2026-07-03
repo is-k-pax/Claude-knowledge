@@ -33,6 +33,55 @@ Errores y trampas descubiertas trabajando con LOPs y Tool Manager.
   `Restartserver.pulse()` para que aparezcan los toggles individuales de las tools nuevas. Sin ese
   restart, el toggle sigue mostrando solo las tools que existían en la última vez que se arrancó
   el servidor, aunque `GetTool()` del `Any` ya devuelva la lista completa.
+- **Si el `tool_manager` usa `aiohttp` internamente** (ver `td_mcp_adapter` → `create_http_app()`),
+  ese método solo se ejecuta al arrancar el servidor. Editar el DAT y esperar que el servidor ya
+  corriendo recoja el cambio en caliente no funciona — hace falta `Restartserver.pulse()` después
+  de cada edición del código del adapter, no solo tras cambios en el módulo del `Any`.
+
+---
+
+## ⚠️ Probar el propio servidor MCP desde dentro del proceso de TD puede autobloquearse
+
+**Síntoma:** una llamada HTTP bloqueante (`urllib.request.urlopen`, o cualquier cliente síncrono)
+lanzada desde `td_code`/`network_context` hacia el propio `tool_manager` de ese mismo proyecto
+(ej. `http://127.0.0.1:<puerto>/mcp`) se queda colgada hasta el timeout, en todas las peticiones,
+sin importar el contenido de la petición.
+
+**Causa:** el servidor del `tool_manager` corre sobre `aiohttp` en el mismo proceso/hilo de TD. Si
+el script que hace la petición también se ejecuta en ese hilo de forma síncrona y bloqueante,
+compite por el mismo recurso que necesita para poder responderse a sí mismo — auto-bloqueo. No es
+un fallo del servidor ni de la lógica que se esté probando (p. ej. un middleware de auth): el
+patrón de prueba en sí es el problema.
+
+**Fix:** nunca testear un servidor MCP embebido en TD haciendo peticiones de red hacia él mismo
+desde dentro de `td_code`/`network_context`. Probarlo desde un proceso externo — una terminal
+aparte con `curl` o `Invoke-WebRequest` (PowerShell), o cualquier cliente HTTP que corra fuera del
+proceso de TD. Esto también permite verificar alcance real desde fuera de la máquina si el
+servidor está expuesto (ver `lops_external_mcp_exposure.md`).
+
+**Regla:** después de un timeout así, comprobar que TD sigue sano (`project.cookRate`,
+`tm.par.Running`) antes de seguir — el bloqueo puede ser temporal (se libera al expirar el
+timeout del lado cliente) pero conviene confirmarlo, no asumirlo.
+
+---
+
+## ⚠️ La tool `create` del Tool Manager MCP puede fallar genéricamente sin motivo aparente
+
+**Síntoma:** `create(target=..., content=...)` devuelve `Tool execution failed` sin más detalle,
+de forma consistente, independientemente de la ruta de destino (falla igual en un container propio
+que directamente en `/project1`).
+
+**Diagnóstico:** no es un problema de permisos de la ubicación — se probó en dos ubicaciones
+distintas con el mismo resultado. La causa exacta no se determinó en el momento (podría ser un bug
+puntual de esa versión de la tool, o un estado inconsistente del Tool Manager en esa sesión).
+
+**Workaround que sí funciona:** evitar crear un DAT nuevo cuando el objetivo es solo guardar un
+valor de configuración (como un token) — meterlo como constante dentro de un DAT que ya existe
+(editado con `str_replace`/asignación de `.text`) en vez de crear un DAT dedicado. Si de verdad
+hace falta crear un operador nuevo y `create` falla, recurrir al patrón `loadTox()` (ver pitfall
+de copiar ops entre containers, más abajo) o al conector `touchdesigner-lop` con
+`create_td_node` — aunque este último requiere que ese servidor esté conectado a la instancia
+viva de TD (no funciona en modo "docs-only").
 
 ---
 
@@ -119,6 +168,14 @@ opera sobre una referencia a un objeto real de la red, no crea nada nuevo dentro
 **Además:** la herramienta `network_context` bloquea `destroy()` explícitamente a nivel de tool
 ("Blocked: destroy() — permanently deletes operators"), incluso con `Allowcreate`/`Allowmodify`
 en `True`. Ese bloqueo es solo de esa tool concreta — `td_code` no tiene esa restricción.
+
+**Otro matiz — creación de operadores también puede estar bloqueada en `network_context`.**
+Además del bloqueo de `destroy()`, esta tool puede rechazar directamente cualquier `.create(...)`
+con `"Creating operators is not allowed in current mode. Set preset to 'Full' or enable 'Allow
+Create'"`. Ese preset no es configurable desde los argumentos de la llamada — si hace falta crear
+un operador real y `network_context` lo bloquea, usar `loadTox()` (que sí funciona incluso en este
+modo, aparentemente no se clasifica como "create" restringido) o recurrir a editar un DAT ya
+existente en vez de crear uno nuevo cuando el caso de uso lo permite.
 
 **Regla práctica:** si necesitas borrar operadores y `network_context` te bloquea con ese mensaje,
 usa `td_code` con `.destroy()` directamente; funciona y persiste.
