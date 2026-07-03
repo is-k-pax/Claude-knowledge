@@ -5,7 +5,8 @@
 > otro cliente que soporte MCP remoto) — no solo Claude Desktop en LAN.
 >
 > Ver también: `lops_snippets.md` (patrón Any + tools dedicadas),
-> `lops_pitfalls.md` (parche del `_dispatcher`, sync de Tool Toggle).
+> `lops_pitfalls.md` (parche del `_dispatcher`, sync de Tool Toggle, riesgo
+> de auto-bloqueo al testear el propio servidor desde dentro de TD).
 >
 > Última revisión: julio 2026.
 
@@ -84,50 +85,127 @@ expone el puerto a cualquiera en internet, sin necesidad de cuenta Tailscale
 del otro lado — es equivalente a ngrok, con mejor infraestructura si ya usas
 Tailscale.
 
-## 4. Autenticación — estado actual del operador y cómo añadirla si hace falta
+**No confundir con Tailscale App Connectors** (pestaña "Apps" del panel).
+Van en la dirección contraria: sirven para que dispositivos *dentro* de tu
+tailnet salgan hacia SaaS externos (Salesforce, GitHub...) por una IP fija,
+no para dejar entrar a un cliente externo hacia un servicio tuyo. Tampoco
+ayudan aquí las Access Controls / ACLs del panel — gobiernan tráfico entre
+miembros del tailnet, y Funnel existe precisamente para saltarse esa
+frontera y servir a cualquiera en internet.
 
-**Verificado por inspección directa del código**, no por ausencia de
-parámetros en la UI: revisando el texto completo de `td_mcp_adapter` y
-`ToolMCPBridgeEXT` (los DATs que implementan el puente MCP del
-`tool_manager`), no hay ninguna mención a `oauth`, `bearer`,
-`authorization`, `api_key` ni manejo de `401`/`WWW-Authenticate` en todo el
-código. El servidor acepta cualquier request en el puerto configurado sin
-comprobar credenciales.
+## 4. Autenticación — patrón validado: middleware de token compartido
 
-**Esto es el estado de esta implementación concreta — no una limitación del
-protocolo MCP ni algo intrínsecamente imposible de resolver.** MCP soporta
-auth (OAuth 2.1, tokens, headers custom) perfectamente bien; el `tool_manager`
-de dotsimulate, tal como viene, simplemente no la implementa todavía. Nada
-impide construirla si hace falta:
+**Confirmado por inspección de código y por el propio doc oficial de
+dotsimulate** (páginas `Config` de `Tool Manager` y de `MCP Server`, el
+operador hermano basado en FastMCP): ninguno de los dos trae parámetro de
+auth. El `tool_manager`, tal como viene, acepta cualquier request en el
+puerto configurado sin comprobar nada. Esto es el estado de esta
+implementación concreta, no una limitación del protocolo MCP — MCP soporta
+auth perfectamente bien (OAuth 2.1, tokens, headers), dotsimulate
+simplemente no la ha implementado todavía en ninguno de sus dos operadores
+de servidor MCP.
 
-- **Proxy delante del puerto** (Caddy/nginx con 2-3 líneas de config) que
-  exija un header o token compartido antes de reenviar al `tool_manager`.
-  Es la opción más rápida de montar y no toca el código de dotsimulate.
-- **Extender `ToolMCPBridgeEXT`** para validar una cabecera `Authorization`
-  antes de despachar cualquier tool call. Más integrado, pero requiere tocar
-  el código del operador — no se ha hecho todavía en ningún proyecto de este
-  repo.
+**Patrón probado end-to-end** (peticiones sin token → 401; con token
+correcto por query param o por cabecera `Authorization` → 200): el
+`tool_manager` sirve su endpoint sobre `aiohttp` puro (no `webserverDAT` de
+TD). El DAT `td_mcp_adapter` construye el `web.Application()` en un método
+`create_http_app()` que ya registra un middleware de CORS — es el punto de
+enganche correcto para añadir uno de autenticación, sin tocar la lógica de
+despacho de tools.
 
-**Al conectar un cliente externo que sí soporta auth (ChatGPT Developer
-Mode, por ejemplo), si el `tool_manager` no la implementa, hay que elegir
-"Sin autenticación" en el cliente — no porque sea imposible tener auth, sino
-porque hasta que se construya (proxy o extensión del bridge) no hay nada al
-otro lado que la responda.** Si el cliente exige OAuth y el servidor no lo
-implementa, el descubrimiento OAuth falla antes de listar las tools.
+Localizar el bloque (dentro del `Any`/`tool_manager` ya clonado, **no** en
+el operador fuente de `/dot_lops`):
+
+```python
+adapter_dat = op('/ruta/tool_manager/td_mcp_adapter')
+```
+
+Insertar el middleware justo antes de `app.middlewares.append(add_cors_headers)`
+/ `return app`, dentro de `create_http_app()`:
+
+```python
+        # --- Shared-secret auth ---
+        # Vacio = sin bloquear (modo abierto). Con texto = exige ese token
+        # via 'Authorization: Bearer <token>' o via query param '?token=<token>'
+        # (compatible con clientes que solo permiten pegar una URL simple,
+        # como ChatGPT Developer Mode).
+        AUTH_TOKEN = ""   # <-- rellenar con un secreto generado, nunca committear el valor real
+
+        @web.middleware
+        async def check_shared_token(request, handler):
+            expected = AUTH_TOKEN.strip()
+            if not expected:
+                return await handler(request)
+            supplied = request.query.get('token', '')
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header.startswith('Bearer '):
+                supplied = auth_header[7:]
+            if supplied != expected:
+                return web.json_response(
+                    {"jsonrpc": "2.0", "id": None,
+                     "error": {"code": -32001, "message": "Unauthorized: token invalido o ausente"}},
+                    status=401
+                )
+            return await handler(request)
+
+        app.middlewares.append(add_cors_headers)
+        app.middlewares.append(check_shared_token)
+        return app
+```
+
+Tras editar el texto del DAT, `Restartserver.pulse()` — `create_http_app()`
+solo se ejecuta al arrancar el servidor, así que un `Refreshtools` no basta.
+
+**Generar el token:**
+```python
+import secrets
+token = secrets.token_urlsafe(20)
+```
+
+**Dar la URL al cliente externo con el token embebido** (mismo patrón que
+usan servidores MCP reales como el de Xweather:
+`https://mcp.api.xweather.com/mcp?api_key=...`):
+```
+https://<maquina>.<tailnet>.ts.net/mcp?token=<el_token_generado>
+```
+
+En ChatGPT Developer Mode, "Autenticación" sigue siendo **"Sin
+autenticación"** — el token no es un flujo OAuth, va camuflado en la propia
+URL del servidor, así que el cliente lo manda automáticamente en cada
+petición sin que nadie tenga que reintroducirlo.
+
+**Qué protege y qué no protege este patrón:** sube muchísimo la barrera de
+entrada (adivinar una URL de Funnel + una cadena aleatoria es
+inviable en la práctica) pero sigue siendo un secreto compartido, no
+identidad real — el servidor no sabe *quién* hizo cada llamada, solo que
+llevaba el secreto correcto. Para eso hace falta OAuth de verdad (ver más
+abajo). Para un prototipo o demo puntual, es la relación
+esfuerzo/protección correcta.
+
+**Opciones más allá de esto, si algún día hace falta identidad real:**
+- **Proxy delante del puerto** (Caddy/nginx) — misma idea que el middleware
+  pero fuera del código de dotsimulate, útil si no quieres tocar el DAT.
+- **OAuth real** — Tailscale mismo publicó un ejemplo de cómo construir un
+  proveedor de identidad ligero (`tsidp`) combinando `tsnet` + Funnel +
+  grants de capacidad de aplicación: exponen los endpoints públicos por
+  Funnel pero mantienen `/authorize` accesible solo desde dentro del
+  tailnet, así el login lo resuelve gratis la identidad de Tailscale. Es
+  código propio (Go + `tsnet`), no un botón del panel — referencia útil si
+  se aborda un Nivel 3 de verdad.
 
 ## 5. Conectar desde un cliente externo (ejemplo: ChatGPT)
 
 ChatGPT requiere plan Plus/Pro/Business/Enterprise/Edu y activar Developer
 Mode (Settings → Apps → Advanced settings). Ahí, añadir la URL del paso 3
-(`.../mcp`) como servidor MCP custom, autenticación "Sin autenticación" (o
-lo que corresponda si has montado un proxy con auth), revisar las tools que
-detecta, y activarlas.
+(con `?token=...` si se implementó el paso 4) como servidor MCP custom,
+autenticación "Sin autenticación", revisar las tools que detecta, y
+activarlas.
 
 ## 6. Apagar tras la prueba
 
 El `tool_manager` no tiene rate limiting ni logging de acceso más allá del
-log estándar del operador. Sin auth añadida, cualquiera con la URL de
-Funnel tiene el mismo acceso que el cliente autorizado mientras el túnel
+log estándar del operador. Sin el middleware de token, cualquiera con la URL
+de Funnel tiene el mismo acceso que el cliente autorizado mientras el túnel
 esté activo. Tratar Funnel como algo que se enciende para la sesión de
 prueba y se apaga después, no como infraestructura siempre activa —
 especialmente si alguna tool de escritura queda encendida por descuido.
