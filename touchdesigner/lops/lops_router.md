@@ -15,6 +15,7 @@ Doc oficial: https://docs.dotsimulate.com/
 | Usar Claude Code LOP | lops_claude_code.md |
 | Configurar Tool Manager desde cero | lops_tool_manager.md |
 | Exponer un tool_manager a un cliente MCP externo (ChatGPT, etc.) | lops_external_mcp_exposure.md |
+| Buscar documentación sobre el funcionamiento de un operador de TD | leer_documentacion.md |
 | Trabajar con operadores POPX | ../popx/popx_router.md |
 
 ---
