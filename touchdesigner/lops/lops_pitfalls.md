@@ -227,6 +227,16 @@ clasificar cada `Dyn*` mecánicamente en vez de adivinar por el nombre. El texto
 veces incluye una etiqueta de tipo entre corchetes (`[IMAGE]`) y a veces no — no depender solo de
 esa etiqueta, `p.style` es la fuente de verdad que nunca falla.
 
+**⚠️ No detectar "es una máscara" por substring "mask" en el nombre del campo.** Un workflow de
+inpaint tiene muchos parámetros de configuración cuyo nombre contiene "mask" sin ser en absoluto
+una imagen de máscara subible: `mask_expand_pixels`, `mask_invert`, `mask_blend_pixels`,
+`mask_fill_holes`, `noise_mask` (booleano), `context_from_mask_extend_factor`... Buscar la
+substring `"mask"` en el nombre del campo da falsos positivos masivos. La detección fiable es:
+`p.style in ('TOP', 'File')` (ya usado para detectar imágenes) **y además** el campo se llama
+literalmente `mask` (no una variante compuesta) o el `class_type` del nodo es un loader de
+máscara dedicado (`LoadImageMask`). Cualquier otro parámetro con "mask" en el nombre es
+configuración, no una imagen.
+
 **Nota relacionada — `Imagepartype`:** el modo de entrada de imagen (`top` / `file` / `strmenu`,
 página Config) determina si un agente externo puede pasar una imagen de referencia en absoluto.
 En modo `top` la imagen tiene que ser un TOP ya conectado dentro de la red — un agente MCP externo
@@ -257,6 +267,73 @@ descargarlo — es trivial y no depende de que dotsimulate arregle esta pieza. S
 el viewer interno del LOP también lo refleje "de prestado", asignar directamente
 `comfy_op.op('output_top_disp').par.file` y pulsar `reload` funciona (es un parámetro simple, sin
 expresión bloqueada ni lógica interna que lo sobreescriba).
+
+### ⚠️ Leer el JSON del workflow sin `encoding='utf-8'` explícito falla con emoji/caracteres especiales en los títulos de nodo
+
+**Síntoma:** `open(workflow_path, 'r')` (sin encoding) lanza
+`'charmap' codec can't decode byte 0x8f in position ...` al leer un workflow guardado desde
+ComfyUI, aunque el archivo sea JSON válido.
+
+**Causa:** en Windows, el modo texto de `open()` usa por defecto la codificación de la consola
+(normalmente `cp1252`), no UTF-8. Muchos workflows de ComfyUI incluyen emoji en `_meta.title` de
+nodos con nombres visuales (ej. `"✂️ Inpaint Crop"`) — esos bytes UTF-8 multibyte no son
+representables en `cp1252` y rompen la lectura.
+
+**Fix:** especificar siempre `encoding='utf-8'` al leer cualquier archivo de workflow de ComfyUI:
+```python
+with open(workflow_path, 'r', encoding='utf-8') as f:
+    wf = json.load(f)
+```
+
+### 📎 Patrón: inpaint "clipspace" — imagen y máscara en un único PNG RGBA
+
+Algunos workflows de inpaint (los que se construyen a mano en ComfyUI usando su editor de máscara
+integrado, "Mask Editor" sobre clipspace) **no tienen un nodo de máscara separado**. En su lugar,
+un único nodo `LoadImage` carga un PNG con canal alpha: el **RGB es la imagen**, el **canal alpha
+es la máscara** (blanco = región a repintar, transparente/negro = región a conservar). El pipeline
+típico es:
+
+```
+LoadImage (RGBA) → sale (IMAGE, MASK) del mismo archivo
+    ↓
+InpaintCropImproved → recorta la región de interés usando la máscara
+    ↓
+InpaintModelConditioning (noise_mask=true) → limita la generación a la zona marcada
+    ↓
+KSampler → genera solo dentro de esa zona
+    ↓
+InpaintStitchImproved → pega el resultado de vuelta en la imagen original intacta
+```
+
+**Cómo generar esto programáticamente** (sin editor de máscara, con coordenadas normalizadas
+0-1, origen arriba-izquierda tipo CSS — el mismo sistema que usa un lidar/región de pantalla):
+
+```python
+from PIL import Image, ImageDraw
+import io
+
+def crear_composite_rgba(image_bytes, region):
+    src = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    W, H = src.size
+    alpha = Image.new('L', (W, H), 0)
+    draw = ImageDraw.Draw(alpha)
+    rx, ry = int(region['x'] * W), int(region['y'] * H)
+    rw, rh = int(region['w'] * W), int(region['h'] * H)
+    draw.rectangle([rx, ry, rx + rw, ry + rh], fill=255)
+    rgba = src.convert('RGBA')
+    rgba.putalpha(alpha)
+    buf = io.BytesIO()
+    rgba.save(buf, 'PNG')
+    return buf.getvalue()
+```
+
+Subir el PNG resultante como el único archivo del `LoadImage` (via `/upload/image`) — no hace
+falta tocar ningún parámetro de máscara aparte. **Cómo distinguir este caso del caso "máscara
+como parámetro separado"**: comprobar si el workflow tiene algún `Dyn*` con `is_mask=True` (ver
+pitfall de arriba sobre detección fiable) — si no hay ninguno, es un candidato a inpaint tipo
+clipspace y este es el patrón a usar. Validado end-to-end: región marcada con coordenadas
+normalizadas → PNG RGBA subido → `InpaintCropImproved`/`InpaintStitchImproved` → resultado
+pixel-perfect fuera de la región, contenido nuevo dentro.
 
 ---
 
