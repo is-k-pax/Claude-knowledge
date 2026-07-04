@@ -2,7 +2,7 @@
 
 Errores y trampas descubiertas trabajando con LOPs y Tool Manager.
 
-**Última revisión:** 3 de julio de 2026.
+**Última revisión:** 4 de julio de 2026.
 
 ---
 
@@ -37,6 +37,19 @@ Errores y trampas descubiertas trabajando con LOPs y Tool Manager.
   ese método solo se ejecuta al arrancar el servidor. Editar el DAT y esperar que el servidor ya
   corriendo recoja el cambio en caliente no funciona — hace falta `Restartserver.pulse()` después
   de cada edición del código del adapter, no solo tras cambios en el módulo del `Any`.
+- **Un `tool_manager` puede agregar VARIOS operadores en su secuencia "External Op Tools"**
+  (Tool0op, Tool1op, Tool2op...) — no solo un `Any`. Cualquier LOP con `GetTool()` vale: otro
+  `Any`, el `comfyui` nativo, un `mcp_client`. Este es el mecanismo real para componer "kits" de
+  capacidades por proyecto (ej. un `Any` de lógica de sala + un `comfyui` de generación de imagen,
+  añadido solo en los proyectos que lo necesiten).
+- **El sistema de Presets (`Savepreset`/`Loadpreset`) NO recablea qué operadores están en la
+  secuencia** — solo guarda y restaura qué tools individuales están encendidas/apagadas
+  (`Enable<tool>`) dentro de lo que ya esté conectado en ese momento. `Loadpreset` lee
+  `Tool_Toggles` de la tabla de presets y aplica esos switches; el campo `Tool_Sequence` se
+  guarda pero no se usa para reconstruir el cableado. Para cambiar de "kit" de verdad (añadir o
+  quitar un operador entero como el de ComfyUI) hay que tocar Tool0op/Tool1op a mano o mediante
+  `.tox` distintos por proyecto — los Presets solo sirven para afinar qué tools concretas ve el
+  agente dentro de un cableado ya fijo.
 
 ---
 
@@ -62,6 +75,93 @@ servidor está expuesto (ver `lops_external_mcp_exposure.md`).
 **Regla:** después de un timeout así, comprobar que TD sigue sano (`project.cookRate`,
 `tm.par.Running`) antes de seguir — el bloqueo puede ser temporal (se libera al expirar el
 timeout del lado cliente) pero conviene confirmarlo, no asumirlo.
+
+---
+
+## ⚠️ `time.sleep()` en bucle dentro de `td_code`/`network_context` para esperar un job async bloquea TD entero (y puede colgar el propio job)
+
+**Síntoma:** se lanza una generación/tarea asíncrona en un operador externo (ej. `comfyui` LOP
+esperando a ComfyUI) y, para "esperar el resultado", se hace un bucle tipo
+`for i in range(N): time.sleep(2); check_status()` dentro de una sola llamada a
+`td_code`/`network_context`. El status queda pegado ("Queued", "Executing"...) mucho más tiempo
+del esperable, y a veces el job nunca progresa hasta que se cancela manualmente.
+
+**Causa:** `td_code`/`network_context` ejecutan en el proceso/hilo de TD. Un `time.sleep()` ahí
+bloquea ese hilo por completo durante toda la duración del bucle — no es una espera "en segundo
+plano". Si la comunicación con el servicio externo depende de que TD siga cocinando (ej. un
+WebSocket que necesita que el cook thread procese mensajes entrantes para avanzar el estado del
+job), el bloqueo puede impedir que el propio job que se está esperando progrese, dejándolo
+atascado indefinidamente en vez de simplemente tardar más.
+
+**Fix:**
+- Nunca hacer polling con `sleep()` dentro de una sola llamada. Hacer UNA comprobación de estado
+  por llamada, sin espera, y dejar pasar tiempo real entre llamadas separadas (o pedirle al
+  usuario que confirme cuándo ha pasado tiempo suficiente, si el usuario tiene la UI de TD
+  delante y puede verificarlo él mismo más rápido que sondeando a ciegas).
+- Si un job se queda atascado por este motivo: `Interrupt` + `Clear Queue` (o el pulse
+  equivalente del operador) y relanzar la generación limpia. Ha funcionado como recuperación
+  fiable tras un bloqueo de este tipo.
+- Regla general: cualquier espera de un resultado async en LOPs debe resolverse con el mecanismo
+  nativo del framework para eso (callbacks, `run(..., delayFrames=N)` reprogramándose desde el
+  cook thread, o `ext.run_async(...)` si el operador lo expone) — nunca con una espera bloqueante
+  dentro de la misma llamada que dispara la tarea.
+
+---
+
+## ComfyUI LOP (`comfyui` / ComfyTD)
+
+Notas de uso del operador nativo `comfyui` (bridge TD↔ComfyUI, carga workflows JSON y expone
+`GetTool()` para agentes). Doc oficial: `docs.dotsimulate.com/operators/pipelines/comfyui/`.
+
+### ⚠️ `Apiparfilter` viene con un default de fábrica que no coincide con ningún parámetro real
+
+**Síntoma:** el tool `generate_image` que expone el operador llega al agente con
+`"parameters": {"properties": {}}` — vacío, sin ni siquiera el prompt, aunque el operador tenga
+parámetros `Dyn*` (prompt, imagen, seed...) perfectamente configurados y visibles en su propia UI.
+
+**Causa:** `Apiparfilter` (página Config) filtra qué `Dyn*` se exponen al agente por patrón
+wildcard. El valor por defecto que trae el operador de fábrica es `*alue` — un patrón que no
+matchea el nombre de ningún parámetro real, así que el filtro deja pasar cero parámetros. No es
+un fallo de configuración del usuario, es el estado inicial del operador.
+
+**Fix:** vaciar `Apiparfilter` (expone todos los `Dyn*`) o ponerle un patrón explícito que
+matchee lo que quieras que el agente controle en cada llamada, ej. `*text* *image* *seed*`. Hay
+que revisarlo cada vez que se carga un workflow nuevo, porque los nombres de nodo cambian (ver
+siguiente pitfall).
+
+### ⚠️ Los nombres de los parámetros `Dyn*` cambian según el workflow cargado — nunca asumirlos
+
+**Síntoma:** un workflow expone el prompt como `Dyntext`; otro (aparentemente similar, mismo
+propósito txt2img) lo expone como `Dynvalue`, con `Dynvalue1`/`Dynvalue2` siendo en realidad
+width/height de otro nodo distinto. Pasar `Dyntext` a un workflow que en realidad usa `Dynvalue`
+falla con `AttributeError` en vez de con un error más informativo.
+
+**Causa:** ComfyTD nombra cada `Dyn*` según el tipo de widget del nodo de origen en el workflow
+(ej. un nodo `PrimitiveStringMultiline` puede acabar como `Dynvalue`, no `Dyntext`, si esa es la
+etiqueta genérica del widget en ese nodo concreto). El nombre no es estable entre workflows aunque
+la función sea la misma.
+
+**Fix:** tras cargar cualquier workflow nuevo (`Loadworkflow.pulse()`), inspeccionar cada
+parámetro `Dyn*` con `.help` y `.label` antes de asumir cuál es el prompt o la imagen:
+
+```python
+c = op('/ruta/al/comfyui1')
+for p in c.customPars:
+    if p.name.startswith('Dyn'):
+        print(p.name, '| label:', p.label, '| help:', p.help)
+```
+
+El `.help` incluye el número y tipo de nodo de origen (ej. `"Node 76 (PrimitiveStringMultiline):
+value"`), que es la forma fiable de identificar qué es cada uno.
+
+**Nota relacionada — `Imagepartype`:** el modo de entrada de imagen (`top` / `file` / `strmenu`,
+página Config) determina si un agente externo puede pasar una imagen de referencia en absoluto.
+En modo `top` la imagen tiene que ser un TOP ya conectado dentro de la red — un agente MCP externo
+no puede "adjuntar" una imagen así, solo cambiar qué TOP está referenciado si ya existe uno con
+contenido cargable. Para que un agente pase una ruta de archivo directamente, hace falta `file`.
+
+**Recuperación tras un job atascado:** ver el pitfall de arriba sobre `time.sleep()` bloqueante —
+`Interrupt` + `Clear Queue` + relanzar `Generate` limpio ha funcionado de forma fiable.
 
 ---
 
