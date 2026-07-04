@@ -4,6 +4,29 @@
 
 ---
 
+## Antes de leer nada del repo o tocar la red de TD: mira qué tools MCP ya tienes
+
+Si el proyecto tiene un `tool_agent`/servidor MCP propio (tipo `agent_tools` sobre un `Any`,
+ver `touchdesigner/lops/lops_snippets.md`), es muy probable que la tarea que te piden ya esté
+resuelta por una tool existente — a veces en una sola llamada.
+
+**Orden correcto, siempre:**
+1. `tool_search` con límite alto (`limit=20` o más) para ver TODAS las tools MCP ya conectadas
+   en esta conversación — no solo las primeras 5 (ver `general/mcp_troubleshooting.md`).
+2. Si una tool existente resuelve la tarea (o la resuelve parcialmente): úsala directamente.
+   No leas documentación del repo ni entres a inspeccionar la red de TD para tareas que una
+   tool ya conocida resuelve.
+3. Solo si ninguna tool existente cubre lo pedido, entonces sí: lee este router, sigue la
+   tabla de abajo, y entra a inspeccionar/modificar la red de TD.
+
+**Por qué importa:** leer documentación y explorar la red de TD por costumbre, sin comprobar
+antes qué tools ya existen, multiplica las llamadas necesarias varias veces sobre lo mínimo
+(se ha medido un caso real: 13 llamadas para algo que la tool ya existente resolvía en 2-3).
+Esto no es un problema de que falten instrucciones en la tool — es un problema de orden:
+comprobar el inventario de tools antes de investigar arquitectura.
+
+---
+
 ## Qué documento leer según la situación
 
 ### TouchDesigner
