@@ -108,6 +108,43 @@ atascado indefinidamente en vez de simplemente tardar más.
 
 ---
 
+## ⚠️ Llamar a funciones del módulo de un `Any` desde `run()` lanzado por un thread en background: `.module` no existe
+
+**Síntoma:** un thread en background (ej. generación REST de ComfyUI) termina y reprograma un
+callback al cook thread con `run(f"op('{path}').module._mi_funcion(...)", delayFrames=1)`. La
+tarea nunca se completa — sin excepción visible en el resultado de la llamada original, porque el
+`run()` falla de forma diferida y silenciosa (el error solo aparece en el log/Textport de TD, no
+se propaga a quien programó el `run()`).
+
+**Causa:** para un operador `Any`, el atributo `.module` **no existe** en el objeto COMP —
+`op('/ruta/al/any_op').module` lanza `tdAttributeError`. El módulo Python cargado vive en
+`ext.AnyExt._module`. El acceso correcto es `op('/ruta').ext.AnyExt._module._mi_funcion(...)`.
+(Para un Text DAT normal con contenido Python sí existe `.module` — la confusión viene de mezclar
+ambos patrones.)
+
+**Fix:**
+```python
+# MAL (falla silenciosamente vía run() desde un thread):
+run(f"op('{path}').module._finalize(...)", delayFrames=1)
+
+# BIEN:
+run(f"op('{path}').ext.AnyExt._module._finalize(...)", delayFrames=1)
+```
+
+**Regla de verificación:** antes de fiarte de un `run()` disparado desde un thread, probar la
+misma llamada de forma síncrona primero (`op('{path}').ext.AnyExt._module._finalize(...)`
+directamente en `td_code`) para confirmar que la ruta de acceso y la firma de argumentos son
+correctas. Un `run()` con un string mal formado no da ningún feedback inmediato — el fallo solo se
+descubre por ausencia de efecto (el job se queda "pending" para siempre).
+
+**Relacionado:** revisar también el número de argumentos pasados en el string de `run()` —
+al construir la llamada dinámicamente con f-strings es fácil que la firma de la función real
+(por ejemplo, 3 parámetros posicionales) no coincida con lo que el string generado realmente pasa
+(por ejemplo, solo 2) sin que ningún linter lo detecte, porque todo es texto hasta que TD lo
+ejecuta.
+
+---
+
 ## ComfyUI LOP (`comfyui` / ComfyTD)
 
 Notas de uso del operador nativo `comfyui` (bridge TD↔ComfyUI, carga workflows JSON y expone
@@ -136,7 +173,8 @@ generación disparada por código/agente, ir por **REST puro contra el servidor 
 thread en background** (`POST /prompt`, `GET /history/{id}`, `GET /view`), sin tocar
 `Generate.pulse()` del LOP en absoluto. El thread no debe tocar ningún objeto TD hasta el final,
 donde se reprograma un callback al cook thread vía `run(..., delayFrames=1)` para volcar el
-resultado (cargar el archivo en un TOP, actualizar tablas, etc.).
+resultado (cargar el archivo en un TOP, actualizar tablas, etc.) — ver el pitfall de arriba sobre
+cómo invocar correctamente ese callback si el operador que recibe el resultado es un `Any`.
 
 **Regla:** si necesitas que un agente dispare generación de ComfyUI desde TD de forma fiable, el
 `comfyui` LOP no es el motor de ejecución — es solo la fuente de configuración (workflow file,
