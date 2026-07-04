@@ -113,6 +113,36 @@ atascado indefinidamente en vez de simplemente tardar más.
 Notas de uso del operador nativo `comfyui` (bridge TD↔ComfyUI, carga workflows JSON y expone
 `GetTool()` para agentes). Doc oficial: `docs.dotsimulate.com/operators/pipelines/comfyui/`.
 
+### ⚠️ Esperar el resultado de `comfyui.par.Generate.pulse()` deadlockea el cook thread — confirmado dos veces, en dos proyectos distintos
+
+**Síntoma:** se pulsa `Generate` en el operador `comfyui` y luego se intenta esperar el resultado
+(via thread+join, polling de `Status`/filesystem, o cualquier otra forma de espera) desde el mismo
+código que disparó el pulse. El LOP nunca progresa: `Status` se queda pegado, el archivo no se
+descarga, timeout garantizado. Variantes que fallan todas: `threading.Thread` + `join()` +
+polling de `.par.Status` (error `TouchDesigner objects cannot be accessed outside the main
+thread`), thread + `join()` + polling de filesystem (el archivo nunca aparece porque el LOP
+necesita el cook thread para descargarlo y ese thread está bloqueado en `join()`), `time.sleep()`
+directo en el cook thread (el propio `pulse()` se queda en cola sin llegar a procesarse).
+
+**Causa:** el operador `comfyui` necesita que el cook thread de TD siga corriendo para procesar los
+eventos del WebSocket con ComfyUI y descargar los archivos de salida. Cualquier forma de esperar
+un resultado bloquea justo el recurso que el LOP necesita para producir ese resultado — mismo
+patrón que el autobloqueo del `tool_manager` (pitfall de arriba), pero más traicionero porque el
+LOP no da ningún error visible, simplemente no avanza nunca.
+
+**Fix:** tratar `comfyui` (el LOP) exclusivamente como panel de configuración y para generación
+manual desde la UI — cargar workflow, inspeccionar `Dyn*` (ver pitfall de nombres más abajo). Para
+generación disparada por código/agente, ir por **REST puro contra el servidor de ComfyUI en un
+thread en background** (`POST /prompt`, `GET /history/{id}`, `GET /view`), sin tocar
+`Generate.pulse()` del LOP en absoluto. El thread no debe tocar ningún objeto TD hasta el final,
+donde se reprograma un callback al cook thread vía `run(..., delayFrames=1)` para volcar el
+resultado (cargar el archivo en un TOP, actualizar tablas, etc.).
+
+**Regla:** si necesitas que un agente dispare generación de ComfyUI desde TD de forma fiable, el
+`comfyui` LOP no es el motor de ejecución — es solo la fuente de configuración (workflow file,
+carpeta base, servidor, y el mapeo `Dyn*` → nodo/campo que expone via `.help`). La ejecución real
+va aparte.
+
 ### ⚠️ `Apiparfilter` viene con un default de fábrica que no coincide con ningún parámetro real
 
 **Síntoma:** el tool `generate_image` que expone el operador llega al agente con
@@ -142,17 +172,22 @@ etiqueta genérica del widget en ese nodo concreto). El nombre no es estable ent
 la función sea la misma.
 
 **Fix:** tras cargar cualquier workflow nuevo (`Loadworkflow.pulse()`), inspeccionar cada
-parámetro `Dyn*` con `.help` y `.label` antes de asumir cuál es el prompt o la imagen:
+parámetro `Dyn*` con `.help`, `.label` y **`.style`** antes de asumir cuál es el prompt, la imagen
+o cualquier otro campo:
 
 ```python
 c = op('/ruta/al/comfyui1')
 for p in c.customPars:
     if p.name.startswith('Dyn'):
-        print(p.name, '| label:', p.label, '| help:', p.help)
+        print(p.name, '| style:', p.style, '| label:', p.label, '| help:', p.help)
 ```
 
 El `.help` incluye el número y tipo de nodo de origen (ej. `"Node 76 (PrimitiveStringMultiline):
-value"`), que es la forma fiable de identificar qué es cada uno.
+value"`, o `"Node 203 (LoadImage): image"`), que junto con `p.style` (`'TOP'`/`'File'` para
+parámetros de imagen, `'Str'`/`'Int'`/`'Float'`/`'Menu'` para el resto) es la forma fiable de
+clasificar cada `Dyn*` mecánicamente en vez de adivinar por el nombre. El texto del `.help` a
+veces incluye una etiqueta de tipo entre corchetes (`[IMAGE]`) y a veces no — no depender solo de
+esa etiqueta, `p.style` es la fuente de verdad que nunca falla.
 
 **Nota relacionada — `Imagepartype`:** el modo de entrada de imagen (`top` / `file` / `strmenu`,
 página Config) determina si un agente externo puede pasar una imagen de referencia en absoluto.
@@ -162,6 +197,28 @@ contenido cargable. Para que un agente pase una ruta de archivo directamente, ha
 
 **Recuperación tras un job atascado:** ver el pitfall de arriba sobre `time.sleep()` bloqueante —
 `Interrupt` + `Clear Queue` + relanzar `Generate` limpio ha funcionado de forma fiable.
+
+### ⚠️ `CurrentFilePath` nunca se asigna a un valor real — el viewer/History no refleja generaciones nuevas
+
+**Síntoma:** el TOP de preview interno del operador (ej. `output_top_disp`) y el parámetro
+`Currentfile` no se actualizan al generar una imagen nueva, ni al navegar el historial con
+Job/Output index. Se quedan mostrando la última imagen que sí se actualizó manualmente en algún
+momento anterior, o vacíos.
+
+**Causa:** `Currentfile` es un parámetro de solo lectura con expresión
+`me.ext.ComfyUIEXT.CurrentFilePath.val`, donde `CurrentFilePath` es un `tdu.Dependency` interno de
+`ComfyUIEXT`. Revisando el código de la extensión (build de julio 2026), `CurrentFilePath.val`
+solo se **resetea a `""`** en la limpieza de estado — no hay ningún punto del código donde se le
+asigne una ruta real tras completar un job o navegar el historial. Parece una funcionalidad
+incompleta en esta versión del operador (`v0.1.0`, muy reciente), no un error de configuración.
+
+**Workaround:** si necesitas ver el resultado de una generación de forma fiable, no dependas del
+viewer interno del `comfyui` LOP. Si generas por tu cuenta (ver pitfall de arriba sobre no usar
+`Generate.pulse()` para generación programática), carga el resultado en tu propio TOP tras
+descargarlo — es trivial y no depende de que dotsimulate arregle esta pieza. Si además quieres que
+el viewer interno del LOP también lo refleje "de prestado", asignar directamente
+`comfy_op.op('output_top_disp').par.file` y pulsar `reload` funciona (es un parámetro simple, sin
+expresión bloqueada ni lógica interna que lo sobreescriba).
 
 ---
 
@@ -243,6 +300,13 @@ new_op.name = 'mi_op1'
 new_op.nodeX = X; new_op.nodeY = Y
 ```
 
+**Nota — módulos "starter" en el `Any` recién clonado:** el `Any` copiado desde
+`/dot_lops/custom_operators/any` trae `Modulesmenu` apuntando a un módulo de ejemplo incluido
+(`text_editor`, `preset_morpher`, `state_lens`). Si `Modulesmenu` se queda en uno de esos valores,
+pulsar `Reload` **sobreescribe el contenido del DAT `module` con el ejemplo**, borrando cualquier
+código propio ya escrito ahí. Poner `Modulesmenu = '(none)'` antes de escribir el módulo propio
+(o inmediatamente después, y volver a escribir el código si ya se sobreescribió una vez).
+
 ---
 
 ## ⚠️ getattr(tm.par, 'Tool10op') no funciona tras insertBlock
@@ -254,7 +318,7 @@ Los pars OP pueden perderse tras `cook(force=True)` — reasignar siempre despu�
 
 ---
 
-## ⚠️ td_code corre en sandbox — cambios no persisten al container real (matiz: destroy() es la excepción)
+## ⚠️ td_code corre en sandbox — cambios no persisten al container real (matiz: destroy() y edición de DATs existentes son la excepción)
 
 Los ops **creados** con `td_code` NO son visibles desde `network_context` ni desde TD.
 
@@ -264,6 +328,12 @@ Los ops **creados** con `td_code` NO son visibles desde `network_context` ni des
 llamar a `.destroy()` sobre un operador ya existente (obtenido vía `op('/ruta/real')`) borra el
 operador de la red real, verificable después desde `network_context`. Esto es porque `destroy()`
 opera sobre una referencia a un objeto real de la red, no crea nada nuevo dentro del sandbox.
+
+**Otro matiz — editar `.text` de un DAT ya existente TAMBIÉN persiste.** `dat = op('/ruta/real');
+dat.text = nuevo_contenido` desde `td_code` sí se refleja en la red real (verificable releyendo en
+una llamada `td_code` separada). Igual que `destroy()`, esto es mutar una referencia a un objeto
+ya existente, no crear uno nuevo — la restricción de "no persiste" es específica de `create()` y
+de operadores nuevos, no de cualquier cambio hecho desde `td_code`.
 
 **Además:** la herramienta `network_context` bloquea `destroy()` explícitamente a nivel de tool
 ("Blocked: destroy() — permanently deletes operators"), incluso con `Allowcreate`/`Allowmodify`
@@ -278,7 +348,9 @@ modo, aparentemente no se clasifica como "create" restringido) o recurrir a edit
 existente en vez de crear uno nuevo cuando el caso de uso lo permite.
 
 **Regla práctica:** si necesitas borrar operadores y `network_context` te bloquea con ese mensaje,
-usa `td_code` con `.destroy()` directamente; funciona y persiste.
+usa `td_code` con `.destroy()` directamente; funciona y persiste. Para ediciones de contenido de
+DATs (incluyendo `str_replace` fallido de la tool dedicada), reasignar `.text` completo vía
+`td_code` es una alternativa fiable.
 
 ---
 
