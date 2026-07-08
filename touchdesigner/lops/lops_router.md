@@ -9,9 +9,9 @@ Doc oficial: https://docs.dotsimulate.com/
 | Situación | Lee |
 |---|---|
 | Qué operadores LOPs existen y para qué | lops_catalog.md |
-| Algo falla en LOPs o Tool Manager | lops_pitfalls.md |
+| Algo falla en LOPs o Tool Manager | lops_pitfalls.md **y lops_pitfalls_2.md** |
+| Skills de agente (build_agent_skill, skills_config, portabilidad) | lops_pitfalls_2.md (sección Build Agent Skill) |
 | Código LOPs reutilizable (snippets) | lops_snippets.md |
-| Construir un kit de tools modular con operadores Any portables (skills_config, watchers, self-paths) | lops_any_portable_modules.md |
 | Speech-to-text o text-to-speech | lops_stt_tts.md |
 | Usar Claude Code LOP | lops_claude_code.md |
 | Configurar Tool Manager desde cero | lops_tool_manager.md |
@@ -41,7 +41,7 @@ Estas son las que necesitas conocer, por orden de uso:
 
 | Tool | Para qué | Cuidado |
 |---|---|---|
-| `network_context` | Python que **persiste** — crear ops, conectar, modificar la red real | Usar para cambios estructurales. Su exec tiene scoping raro: sin funciones anidadas ni comprehensions sobre locals (ver lops_any_portable_modules.md) |
+| `network_context` | Python que **persiste** — crear ops, conectar, modificar la red real | Usar para cambios estructurales |
 | `td_code` | Python en **sandbox** — inspeccionar, leer, probar | Cambios NO persisten entre calls |
 | `td_mod` | Módulos curados: `catalog` (tipos de op), `net` (leer red), `search` (descubrir módulos) | action: list/doc/source/call |
 | `edit_td_dat_*` | Editar DATs con precisión | Flujo: set_target → read_content → insert/str_replace |
@@ -49,6 +49,10 @@ Estas son las que necesitas conocer, por orden de uso:
 | `read` | Leer archivo o DAT con números de línea | Usar view_range para archivos grandes |
 | `capture_network_screenshot` | Screenshot de la red | Requiere Pillow en el venv |
 | `get_recent_activity` | Ver qué ha tocado el usuario recientemente | — |
+
+**Peculiaridad del sandbox de estos tools:** funciones anidadas y comprehensions no ven las
+variables definidas en el propio script (globals/locals separados de `exec`) — escribir todo
+plano. Detalle en lops_pitfalls_2.md.
 
 ---
 
@@ -72,4 +76,3 @@ Si te piden "mira qué hay en X" o "comprueba el valor de Y" → cualquiera de l
 - Copiar ops LOPs entre containers: usar `save()` + `loadTox()`, NO `copy()` (va al src)
 - No usar Claude Code LOP sin pedir permiso explícito al usuario
 - Limpiar tras experimentos: borrar filas de test, destruir operadores copiados
-- Si `td_code`/`read`/`edit_td_dat_*` fallan con "Handler method not found: dispatch": el `any1` del tool manager de desarrollo perdió el parche `_dispatcher` — aplicarlo (ver lops_pitfalls.md) y `reinitextensions` + `Refreshtools`
