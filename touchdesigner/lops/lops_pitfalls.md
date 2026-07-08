@@ -2,7 +2,7 @@
 
 Errores y trampas descubiertas trabajando con LOPs y Tool Manager.
 
-**Última revisión:** 4 de julio de 2026.
+**Última revisión:** 8 de julio de 2026.
 
 ---
 
@@ -13,6 +13,32 @@ Errores y trampas descubiertas trabajando con LOPs y Tool Manager.
 - Tras cambios en `seq.Tool` o `system_message`: SIEMPRE `reinitextensions.pulse()`
 - `Maxresultchars` default 16K — trunca silenciosamente. Poner 250000
 - Para añadir slot: `ag.par.Tool.sequence.numBlocks = N` (no `ag.par.Tool.val = N`)
+
+### ⚠️ Un resultado truncado por `Maxresultchars` puede parecer "el agente no llamó a la tool"
+
+**Síntoma:** el agente responde con datos que parecen inventados/genéricos sobre el contenido de
+una tool (ej. nombres de archivo plausibles pero incorrectos), y el log del `tool_manager` no
+muestra ninguna entrada de invocación reciente de esa tool — lo que sugiere que nunca se llamó.
+
+**Causa real (en al menos un caso confirmado):** la tool **sí se llamó**, pero devolvió un JSON
+tan grande (ej. una carpeta con cientos de archivos) que superó `Maxresultchars` del Agent LOP y
+se truncó — el agente recibió un fragmento de JSON roto/incompleto y, en vez de fallar
+explícitamente, generó una respuesta plausible con lo poco que pudo interpretar. El log de
+"logs" del `tool_manager` en este proyecto **no registra invocaciones individuales de tools**,
+solo eventos de discovery/refresh y ciclo de vida del servidor — no sirve para confirmar si una
+tool concreta se llamó o no. Hay que buscar el mensaje de truncamiento específico en el log del
+propio Agent LOP (ej. `Tool <nombre> result truncated (N chars over limit)`), no en el del
+tool_manager.
+
+**Fix de fondo:** diseñar las tools de listado para que nunca devuelvan de golpe todo el
+contenido de una carpeta/tabla grande — limitar resultados por defecto (ej. los N más recientes)
+y añadir un parámetro de filtro por substring, en vez de depender de que `Maxresultchars` sea
+suficientemente generoso. Subir `Maxresultchars` es un parche razonable pero no resuelve el caso
+de una carpeta que crezca sin límite.
+
+**Regla de diagnóstico:** antes de concluir "el agente no usó la tool", buscar explícitamente el
+mensaje de truncamiento en el log del Agent LOP. Es una causa mucho más común de lo que parece
+cuando la tool en cuestión lista contenido de tamaño variable (carpetas, tablas, historiales).
 
 ---
 
@@ -50,6 +76,11 @@ Errores y trampas descubiertas trabajando con LOPs y Tool Manager.
   quitar un operador entero como el de ComfyUI) hay que tocar Tool0op/Tool1op a mano o mediante
   `.tox` distintos por proyecto — los Presets solo sirven para afinar qué tools concretas ve el
   agente dentro de un cableado ya fijo.
+- **El log "logs" (Table DAT) del `tool_manager` solo registra eventos de discovery/refresh y
+  ciclo de vida del servidor** (arranque, `GetTool: Exposing N enabled tools`, registro de cada
+  tool al escanear) — **no registra invocaciones individuales de tools**. No sirve para verificar
+  si/cuándo un agente llamó a una tool concreta; para eso hay que mirar el log del propio Agent
+  LOP (ver pitfall de `Maxresultchars` arriba).
 
 ---
 
@@ -237,6 +268,17 @@ literalmente `mask` (no una variante compuesta) o el `class_type` del nodo es un
 máscara dedicado (`LoadImageMask`). Cualquier otro parámetro con "mask" en el nombre es
 configuración, no una imagen.
 
+**⚠️ El rebuild de `Dyn*` tras `Loadworkflow.pulse()` no es instantáneo — leerlos en la misma
+llamada devuelve los del workflow ANTERIOR.** Si se pulsa `Loadworkflow` y a continuación, dentro
+de la misma función/llamada, se lee `customPars`/`.help` para inspeccionar el workflow nuevo, se
+obtienen todavía los parámetros del workflow que estaba cargado antes — el rebuild tarda unos
+frames en completarse y no ha terminado cuando el código sigue ejecutándose de forma síncrona.
+**Fix:** separar "cargar workflow" y "leer sus parámetros" en dos llamadas/tool-calls distintas
+(dos turnos de un agente, o dos llamadas `td_code` separadas) — el tiempo real entre una llamada y
+la siguiente es suficiente para que el rebuild termine. No devolver los `Dyn*` en el mismo
+resultado que confirma la carga; devolver solo la confirmación de carga y decirle explícitamente
+al agente que llame a la inspección de parámetros como paso siguiente.
+
 **Nota relacionada — `Imagepartype`:** el modo de entrada de imagen (`top` / `file` / `strmenu`,
 página Config) determina si un agente externo puede pasar una imagen de referencia en absoluto.
 En modo `top` la imagen tiene que ser un TOP ya conectado dentro de la red — un agente MCP externo
@@ -335,6 +377,181 @@ clipspace y este es el patrón a usar. Validado end-to-end: región marcada con 
 normalizadas → PNG RGBA subido → `InpaintCropImproved`/`InpaintStitchImproved` → resultado
 pixel-perfect fuera de la región, contenido nuevo dentro.
 
+### 📎 Patrón: resolver una imagen de referencia por TOP, URL, o archivo local (tres vías, no una)
+
+Un agente que trabaja con imágenes normalmente conoce sus referencias de una de tres formas
+distintas, y una tool robusta de "generar/editar imagen" debería aceptar las tres sin que el
+agente tenga que saber cuál usar de antemano:
+
+1. **Path de operador TD** (`op(ref)` resuelve y tiene `.save()`, ej. un TOP) — guardar a un
+   archivo temporal con nombre único (ver pitfall de race condition más abajo) y leer los bytes.
+2. **URL http/https** — muy habitual si el resto del proyecto referencia imágenes por URL (ej. un
+   catálogo servido desde Supabase u otro backend). Descargar con `requests.get`, **con un header
+   `User-Agent` explícito** — varios CDNs devuelven 403 al user-agent por defecto de `requests`.
+3. **Ruta de archivo local** (`os.path.exists(ref)`) — leer directamente.
+
+```python
+def _image_to_bytes(ref):
+    if isinstance(ref, str) and (ref.startswith('http://') or ref.startswith('https://')):
+        import requests
+        resp = requests.get(ref, timeout=20, headers={"User-Agent": "Mozilla/5.0 (mi_tool)"})
+        resp.raise_for_status()
+        if len(resp.content) < 100:
+            raise RuntimeError(f"La URL {ref!r} devolvio contenido invalido/vacio")
+        return resp.content, 'jpg'  # o inferir de content-type
+    maybe_op = op(ref) if isinstance(ref, str) else None
+    if maybe_op is not None and hasattr(maybe_op, 'save'):
+        # ... guardar TOP a archivo temporal con nombre unico, leer bytes
+        ...
+    if isinstance(ref, str) and os.path.exists(ref):
+        with open(ref, 'rb') as f:
+            return f.read(), os.path.splitext(ref)[1].lstrip('.') or 'jpg'
+    raise RuntimeError(f"No se pudo resolver la imagen de referencia: {ref!r}")
+```
+
+**Síntoma si solo se cubren TOP + archivo local:** un agente que conoce las imágenes solo por URL
+(porque así referencia todo el resto del sistema del que forma parte) falla con
+"No se pudo resolver la imagen de referencia" al pasar una URL, y en logs de servicios externos
+(ej. ComfyUI) no aparece ninguna actividad — la petición nunca llegó a salir porque falló antes,
+en la resolución de la referencia.
+
+### 📎 Patrón: escanear una carpeta de archivos con `folderDAT` en vez de `os.listdir()` a mano
+
+Para exponer a un agente "qué archivos hay en esta carpeta" (imágenes, workflows, lo que sea) de
+forma portable y eficiente, usar el operador nativo `folderDAT` en vez de reimplementar el escaneo
+con `os.listdir()`/`os.path.getmtime()` en Python:
+
+```python
+folder_dat = comp.create(folderDAT, 'mi_folder')
+folder_dat.par.rootfolder.expr = "parent().par.MiCarpetaConfig.eval()"  # atado a un par de config
+folder_dat.par.imageextensions = True   # o par.extension = 'json' para un tipo concreto
+folder_dat.par.pathcol = True
+folder_dat.par.datemodifiedcol = True
+folder_dat.par.refresh = 'off'          # NO continuo -- se pulsa a demanda
+# en el handler de la tool, justo antes de leer:
+folder_dat.par.refreshpulse.pulse()
+nombre = folder_dat[r, 'name'].val
+ruta = folder_dat[r, 'path'].val
+```
+
+**Por qué:** `folderDAT` trae filtro de extensión nativo (`imageextensions`, o `extension` con un
+menú de tipos comunes incluyendo `json`), evita reimplementar ordenado/filtrado a mano, y sigue
+siendo "bajo demanda" si se deja `refresh='off'` y solo se pulsa `refreshpulse` dentro del handler
+de la tool — el escaneo real solo ocurre cuando el agente decide listar, no en cada llamada a
+otras tools ni de fondo en cada frame.
+
+**Para que la carpeta sea configurable (no fija) y portable entre proyectos:** atar
+`rootfolder` por **expresión** a un parámetro de configuración propio del operador contenedor
+(`parent().par.<Nombre>.eval()`), no a un valor constante — así cambiar el parámetro de config
+re-apunta el `folderDAT` automáticamente, sin tocar código, y sirve para cualquier carpeta que se
+configure ahí en cualquier proyecto futuro.
+
+**Relacionado con `Maxresultchars`:** aun leyendo de un `folderDAT` ya cacheado, si la carpeta
+tiene cientos de archivos hay que limitar/filtrar el resultado antes de devolverlo al agente (ver
+pitfall de `Maxresultchars` en la sección "Agent LOP") — el `folderDAT` resuelve la eficiencia del
+escaneo, no el tamaño del JSON de respuesta.
+
+---
+
+## Build Agent Skill (`build_agent_skill`)
+
+Operador para generar "skills" — guías de uso en texto/markdown/Python que se enganchan a un
+Agent LOP y se inyectan en su contexto cuando corresponde, en vez de hardcodear esa guía en el
+system message del agente. Doc oficial:
+`docs.dotsimulate.com/operators/controllers/build_agent_skill/`.
+
+**Por qué preferirlo a editar el system message directamente:** un skill vive pegado al **tool**
+(o a una carpeta del proyecto), no al agente concreto — cualquier agente que cargue ese tool en
+cualquier proyecto hereda la guía automáticamente, en vez de tener que repetir/mantener la misma
+instrucción en el system message de cada agente por separado.
+
+### ⚠️ Tener el `.py` del skill en disco no basta — el Agent LOP necesita `Useskills` activado y un scan explícito
+
+**Síntoma:** el skill se genera correctamente y `build_agent_skill` lo detecta al escanear
+(`Scan Skill Files` → "N skill file(s)"), pero el Agent LOP no lo usa ni lo menciona en absoluto.
+
+**Causa:** el Agent LOP trae por defecto `Useskills=False` y `Skillssource='none'` — los skills
+están completamente desactivados hasta que se configuran explícitamente.
+
+**Fix:**
+```python
+a1.par.Skillssource = 'project'   # o 'user_project'; opciones: none/project/user_project
+a1.par.Useskills = True
+a1.ext.AgentEXT.onParScanskills()  # ver matiz siguiente sobre por que NO basta con .pulse()
+```
+
+**Matiz — `.par.Scanskills.pulse()` no siempre dispara el callback correctamente**, igual que
+otros pulses de este ecosistema (ver pitfall de `Loadworkflow` en la sección ComfyUI). Si tras
+pulsar `Skillscount` sigue en 0, llamar directamente al método de la extensión:
+`a1.ext.AgentEXT.onParScanskills()`.
+
+**Verificación:** `a1.par.Skillscount.eval()` debe pasar de `"Skills disabled..."` a
+`"N skills (X static, Y dynamic)"`.
+
+### ⚠️ El botón "Generate Blank Skill" sobreescribe un skill existente con el mismo nombre
+
+**Síntoma:** un skill con contenido custom ya escrito y verificado aparece de repente con
+contenido genérico tipo `"TODO describe when an agent should activate this skill"` y
+`"TODO: Replace these generic steps with skill-specific process"`.
+
+**Causa:** el parámetro `Generate Blank Skill` del operador `build_agent_skill` escribe una
+plantilla en blanco al mismo nombre de archivo configurado en `Skill Name` — si ese nombre
+coincide con un skill ya creado, lo sobreescribe sin aviso ni confirmación.
+
+**Fix:** si esto pasa, simplemente volver a generar el skill con la acción `write_py` y el
+`template`/`gather_code` originales (no hay backup automático). Tener cuidado de no pulsar
+"Generate Blank Skill" con el mismo `Skill Name` que un skill real ya construido.
+
+### ⚠️ `tool_op` en el registro de skills puede resolver a `None` — el `get_context()` no debe depender ciegamente de él
+
+**Síntoma:** el skill se registra y su `content`/`description` son correctos, pero el
+`{live_state}` (relleno por `get_context(tool_op, skill_name, agent_info)`) sale vacío, o
+`get_context` lanza `AttributeError: 'NoneType' object has no attribute ...`.
+
+**Causa:** la resolución interna de `build_agent_skill`/`SkillManager` de qué operador es
+`tool_op` (a partir de a qué tool está enlazado el skill) no siempre resuelve correctamente —
+en un caso confirmado devolvió `None` en vez del operador esperado, sin que hubiera un error
+visible en el proceso de creación del skill.
+
+**Fix — hacer `get_context()` defensivo, con un fallback a una ruta absoluta conocida:**
+```python
+def get_context(tool_op, skill_name, agent_info):
+    comfy = None
+    if tool_op is not None:
+        try:
+            comfy = tool_op.parent().op('comfyui1')
+        except Exception:
+            comfy = None
+    if comfy is None:
+        # Fallback: si la resolucion de tool_op falla, buscar por el path
+        # conocido dentro del mismo kit portable en vez de fallar en silencio.
+        comfy = op('/givah_tool/comfyui1')
+    if not comfy:
+        return "No se encontro el operador"
+    return comfy.par.Workflowfile.eval()
+```
+
+No asumir que `tool_op` siempre llega poblado correctamente; degradar con gracia a una ruta
+conocida del propio kit en vez de dejar que `get_context` reviente.
+
+### ⚠️ El nivel "Project .lops" no viaja con el `.tox` del operador — vive en una carpeta junto al `.toe`
+
+**Síntoma:** se copia un operador (`Any`, `comfyui`, etc.) a un proyecto nuevo vía
+`save()+loadTox()`, pero el skill que se había creado para ese operador no aparece por ningún
+sitio en el proyecto nuevo, aunque el operador funcione bien.
+
+**Causa:** `Output Location = 'Project .lops'` escribe el `.py` del skill en una carpeta
+`.lops/skills/` **junto al archivo `.toe`** (ej.
+`.../MiProyecto/.lops/skills/mi_skill.py`), no dentro del propio operador. Es decir, el skill
+está ligado a la carpeta del proyecto, no al operador — copiar el operador NO copia su skill.
+
+**Implicación práctica:** si el objetivo es que un operador sea 100% portable (viaje solo con su
+`.tox`), un skill en nivel "Project .lops" es una pieza aparte que hay que regenerar (o copiar la
+carpeta `.lops/skills/` a mano) en cada proyecto nuevo donde se use ese operador. La alternativa
+`Output Mode = 'skills_config'` (Table DAT) podría en principio vivir dentro del propio operador y
+viajar con el `.tox` — sin confirmar en este proyecto, pendiente de probar si de verdad resuelve
+esta limitación de portabilidad.
+
 ---
 
 ## ⚠️ La tool `create` del Tool Manager MCP puede fallar genéricamente sin motivo aparente
@@ -394,6 +611,15 @@ Un `tool_vfs` dentro de un container propio (fuera de `/claude_desktop_tool_mana
 
 **Regla:** si buscas un `.md` que no aparece en el repo de GitHub, prueba `file_tool_list_files(pattern="*")` antes de explorar la red de TD.
 
+### ⚠️ tool_vfs no es un mecanismo adecuado para exponer imágenes/binarios a un agente
+
+Toda la documentación y mecánica observada de `tool_vfs` (Text DATs, `file_tool_read_file`,
+`file_tool_list_files`) gira en torno a contenido de **texto** (markdown, config, código) — no hay
+soporte confirmado para binarios/imágenes. Si el objetivo es que un agente descubra y use imágenes
+de una carpeta, un `folderDAT` (ver patrón en la sección ComfyUI LOP) resuelve el descubrimiento, y
+la resolución de la imagen en sí (TOP/URL/archivo local, ver patrón arriba) resuelve el acceso —
+sin necesidad de VFS, que además añadiría una capa de indirección sin ganar capacidad real.
+
 ---
 
 ## ⚠️ Copiar ops LOPs entre containers: copy() va al src, no al target
@@ -421,6 +647,23 @@ new_op.nodeX = X; new_op.nodeY = Y
 pulsar `Reload` **sobreescribe el contenido del DAT `module` con el ejemplo**, borrando cualquier
 código propio ya escrito ahí. Poner `Modulesmenu = '(none)'` antes de escribir el módulo propio
 (o inmediatamente después, y volver a escribir el código si ya se sobreescribió una vez).
+
+**Nota relacionada — páginas de parámetros custom añadidas por fuera también se pierden en cada
+`Reload`.** Si se añade una página/parámetros manualmente vía `comp.appendCustomPage()` +
+`page.appendStr()`/`appendFolder()`/etc. (en vez del mecanismo propio del framework), `Reload`
+las destruye igual que el módulo de ejemplo — el framework solo reconstruye lo que él mismo
+gestiona. **Fix:** declarar los parámetros custom en la variable `params` a nivel de módulo
+(lista de dicts con `name`, `type`, `page`, `label`, `default`, `help`...), no añadirlos por
+fuera con la API de TD directamente:
+```python
+params = [
+    {"name": "Serverurl", "type": "str", "page": "Config", "label": "Server URL",
+     "help": "..."},
+    {"name": "Refimagesfolder", "type": "folder", "page": "Config", "label": "Ref Images Folder"},
+]
+```
+El framework del `Any` lee esta lista y crea/sincroniza los parámetros él mismo en cada `Reload`,
+sobreviviendo tantos reloads como haga falta — verificado con dos `Reload` consecutivos.
 
 ---
 
