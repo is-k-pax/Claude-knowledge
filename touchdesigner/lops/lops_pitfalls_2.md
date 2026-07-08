@@ -54,6 +54,22 @@ se guardan pero marcados como warning de portabilidad.
 
 ---
 
+## ⚠️ `Modulesmenu` puede REVERTIR a un módulo starter tras un `Reload` — re-verificarlo, no fiarse de haberlo puesto a `(none)` una vez
+
+**Síntoma:** se pone `Modulesmenu='(none)'` en un `Any` recién clonado, se trabaja con él
+(escritura de módulo, varios `Reload`), y al revisarlo más tarde `Modulesmenu` vuelve a mostrar
+un valor starter (`preset_morpher`, `text_editor`...). En el caso observado el módulo custom
+NO se machacó (probablemente porque `Moduledat` apuntaba explícitamente al DAT `./module`
+custom), pero el estado es el mismo que el del pitfall de sobreescritura de la parte 1 — una
+bomba de relojería.
+
+**Regla:** tras cualquier tanda de `Reload`/`reinitextensions` sobre un `Any` con módulo
+custom, re-verificar `Modulesmenu == '(none)'` y volver a asignarlo si revirtió. Verificar
+también la integridad del módulo (buscar una firma propia en el `.text`, ej. el nombre de un
+handler) en vez de asumir que sigue intacto.
+
+---
+
 ## ⚠️ Cambiar el `default` de un parámetro en `params` del módulo NO actualiza un parámetro ya creado
 
 **Síntoma:** se edita la lista `params` del módulo de un `Any` cambiando el `default` de un
