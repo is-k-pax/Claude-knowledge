@@ -10,9 +10,12 @@
 import json
 import os
 
+# Paths absolutos — evitan sorpresas con '..' en el contexto de callbacks
+_BASE = "/givah_tool/sesion_tools"
+
 
 def _mod():
-    return op("../module").module
+    return op(_BASE + "/module").module
 
 
 def _reason(code):
@@ -45,8 +48,12 @@ def onHTTPRequest(webServerDAT, request, response):
 
         # GET /, /form
         if method == "GET" and path in ("/", "/form", "/index.html"):
-            html = op("../form_html").text
-            return _fill(response, 200, html, "text/html; charset=utf-8")
+            html_dat = op(_BASE + "/form_html")
+            if html_dat is None:
+                return _fill(response, 500,
+                             json.dumps({"ok": False, "error": "form_html DAT no encontrado"}),
+                             "application/json; charset=utf-8")
+            return _fill(response, 200, html_dat.text, "text/html; charset=utf-8")
 
         # GET /empresas
         if method == "GET" and path == "/empresas":
