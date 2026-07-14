@@ -15,87 +15,93 @@ def _mod():
     return op("../module").module
 
 
-def _cors(response):
-    response["headers"]["Access-Control-Allow-Origin"] = "*"
-    response["headers"]["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response["headers"]["Access-Control-Allow-Headers"] = "Content-Type"
+def _reason(code):
+    return {
+        200: "OK", 204: "No Content", 400: "Bad Request",
+        404: "Not Found", 500: "Internal Server Error",
+    }.get(code, "OK")
 
 
-def _json(response, code, obj):
-    response["statusCode"] = code
-    response["statusReason"] = "OK" if code == 200 else "Error"
-    response["data"] = json.dumps(obj, ensure_ascii=False)
-    response["headers"]["Content-Type"] = "application/json; charset=utf-8"
-    _cors(response)
-
-
-def _html(response, code, text):
-    response["statusCode"] = code
-    response["statusReason"] = "OK" if code == 200 else "Error"
-    response["data"] = text
-    response["headers"]["Content-Type"] = "text/html; charset=utf-8"
-    _cors(response)
-
-
-def onHTTPRequest(webServerDAT, request, response):
-    method = (request.get("method") or "GET").upper()
-    uri = request.get("uri") or "/"
-    path = uri.split("?", 1)[0].rstrip("/") or "/"
-
-    # Preflight CORS
-    if method == "OPTIONS":
-        response["statusCode"] = 204
-        _cors(response)
-        return response
-
-    # GET /, /form
-    if method == "GET" and path in ("/", "/form"):
-        html = op("../form_html").text
-        _html(response, 200, html)
-        return response
-
-    # GET /empresas
-    if method == "GET" and path == "/empresas":
-        try:
-            empresas = _mod()._empresas_disponibles()
-            _json(response, 200, {"ok": True, "empresas": empresas})
-        except Exception as e:
-            _json(response, 500, {"ok": False, "error": str(e)})
-        return response
-
-    # POST /submit
-    if method == "POST" and path == "/submit":
-        try:
-            body = request.get("data") or "{}"
-            payload = json.loads(body) if isinstance(body, str) else body
-            session_id, disk_path = _mod().iniciar_sesion_desde_formulario(payload)
-            _json(response, 200, {
-                "ok": True,
-                "session_id": session_id,
-                "path": disk_path,
-            })
-        except Exception as e:
-            _json(response, 400, {"ok": False, "error": str(e)})
-        return response
-
-    # GET /informe/<sid>
-    if method == "GET" and path.startswith("/informe/"):
-        sid = path[len("/informe/"):]
-        sessions_dir = _mod()._sessions_dir()
-        html_path = os.path.join(sessions_dir, sid + "_informe.html")
-        if os.path.exists(html_path):
-            with open(html_path, "r", encoding="utf-8") as f:
-                _html(response, 200, f.read())
-        else:
-            _html(response, 404, "<h1>404</h1><p>No hay informe para " + sid + ".</p>")
-        return response
-
-    # Fallback
-    _json(response, 404, {"ok": False, "error": "ruta desconocida: " + method + " " + path})
+def _fill(response, status, body, content_type="text/html; charset=utf-8"):
+    response["statusCode"] = status
+    response["statusReason"] = _reason(status)
+    response["data"] = body
+    response["Content-Type"] = content_type
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response["Access-Control-Allow-Headers"] = "Content-Type"
     return response
 
 
-# WebSocket callbacks (definidos para evitar errores; no se usan por ahora)
+def onHTTPRequest(webServerDAT, request, response):
+    try:
+        method = (request.get("method") or "GET").upper()
+        uri = request.get("uri") or "/"
+        path = uri.split("?", 1)[0].rstrip("/") or "/"
+
+        # Preflight CORS
+        if method == "OPTIONS":
+            return _fill(response, 204, "", "text/plain")
+
+        # GET /, /form
+        if method == "GET" and path in ("/", "/form", "/index.html"):
+            html = op("../form_html").text
+            return _fill(response, 200, html, "text/html; charset=utf-8")
+
+        # GET /empresas
+        if method == "GET" and path == "/empresas":
+            try:
+                empresas = _mod()._empresas_disponibles()
+                return _fill(response, 200,
+                             json.dumps({"ok": True, "empresas": empresas}),
+                             "application/json; charset=utf-8")
+            except Exception as e:
+                return _fill(response, 200,
+                             json.dumps({"ok": False, "error": str(e), "empresas": []}),
+                             "application/json; charset=utf-8")
+
+        # POST /submit
+        if method == "POST" and path == "/submit":
+            try:
+                body = request.get("data", "")
+                if isinstance(body, bytes):
+                    body = body.decode("utf-8")
+                payload = json.loads(body) if isinstance(body, str) and body else {}
+                session_id, disk_path = _mod().iniciar_sesion_desde_formulario(payload)
+                return _fill(response, 200,
+                             json.dumps({"ok": True, "session_id": session_id, "path": disk_path}),
+                             "application/json; charset=utf-8")
+            except Exception as e:
+                print("[sesion_tools/form] /submit error:", e)
+                return _fill(response, 400,
+                             json.dumps({"ok": False, "error": str(e)}),
+                             "application/json; charset=utf-8")
+
+        # GET /informe/<sid>
+        if method == "GET" and path.startswith("/informe/"):
+            sid = path[len("/informe/"):]
+            sessions_dir = _mod()._sessions_dir()
+            html_path = os.path.join(sessions_dir, sid + "_informe.html")
+            if os.path.exists(html_path):
+                with open(html_path, "r", encoding="utf-8") as f:
+                    return _fill(response, 200, f.read(), "text/html; charset=utf-8")
+            return _fill(response, 404,
+                         "<h1>404</h1><p>No hay informe para " + sid + ".</p>",
+                         "text/html; charset=utf-8")
+
+        # Fallback
+        return _fill(response, 404,
+                     json.dumps({"ok": False, "error": "ruta desconocida: " + method + " " + path}),
+                     "application/json; charset=utf-8")
+
+    except Exception as e:
+        print("[sesion_tools/form] excepcion no capturada:", e)
+        return _fill(response, 500,
+                     json.dumps({"ok": False, "error": str(e)}),
+                     "application/json; charset=utf-8")
+
+
+# WebSocket callbacks (no usados por ahora)
 
 def onWebSocketOpen(webServerDAT, client, uri):
     return
@@ -113,7 +119,7 @@ def onWebSocketReceivePing(webServerDAT, client, data):
     return
 
 def onServerStart(webServerDAT):
-    debug("[sesion_tools/form_server] arrancado en puerto " + str(webServerDAT.par.port.eval()))
+    print("[sesion_tools/form_server] arrancado en puerto", webServerDAT.par.port.eval())
 
 def onServerStop(webServerDAT):
-    return
+    print("[sesion_tools/form_server] detenido")
