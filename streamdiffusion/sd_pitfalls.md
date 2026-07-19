@@ -61,6 +61,22 @@ Fix: Verificar numpy, verificar CUDA, probar sin TensorRT primero.
 ### Frames negros
 Causas: prompt weights sumando 0, IP Adapter con sd-turbo, error stale de sesión anterior.
 
+### ControlNet activado pero sin efecto (dos niveles de toggle)
+Síntoma: `ControlNet Active` (maestro) en On, el preview corre sin errores, pero el ControlNet
+no tiene ningún efecto visible sobre el output — como si no estuviera cargado.
+Causa: ControlNet tiene DOS toggles independientes, no uno:
+  1. `ControlNet Active` — maestro, activa el sistema de ControlNet en general.
+  2. `Enable` de cada entrada individual dentro de la lista de ControlNets — activa esa
+     entrada concreta. Puede estar en Off aunque el maestro esté en On.
+Con el maestro On y la entrada individual en Off, el pipeline arranca limpio (sin error) pero
+sin ControlNet real aplicado — fácil de confundir con "está activo pero no hace nada".
+Fix: comprobar el `Enable` de la entrada, no solo el toggle maestro.
+PRECAUCIÓN ADICIONAL: igual que con el toggle maestro (ver más abajo, "Cuándo se puede borrar
+un engine" / comportamiento de CUDA Graphs), encender el `Enable` de una entrada individual
+CON EL STREAM YA CORRIENDO provoca errores en cascada en consola, igual que activar el maestro
+en caliente. Ambos toggles (maestro y por-entrada) deben fijarse ANTES de arrancar el stream,
+nunca en caliente.
+
 ---
 
 ## TensorRT Engines
