@@ -1,1 +1,131 @@
-IyBSb3V0ZXIg4oCUIGxlZSBlc3RvIHByaW1lcm8KCioqUmVwbzoqKiBpcy1rLXBheC9DbGF1ZGUta25vd2xlZGdlIChww7pibGljbywgZWRpdGFibGUgdmlhIEdpdEh1YiBNQ1ApCgotLS0KCiMjIEFudGVzIGRlIGxlZXIgbmFkYSBkZWwgcmVwbyBvIHRvY2FyIGxhIHJlZCBkZSBURDogbWlyYSBxdcOpIHRvb2xzIE1DUCB5YSB0aWVuZXMKClNpIGVsIHByb3llY3RvIHRpZW5lIHVuIGB0b29sX2FnZW50YC9zZXJ2aWRvciBNQ1AgcHJvcGlvICh0aXBvIGBhZ2VudF90b29sc2Agc29icmUgdW4gYEFueWAsCnZlciBgdG91Y2hkZXNpZ25lci9sb3BzL2xvcHNfc25pcHBldHMubWRgKSwgZXMgbXV5IHByb2JhYmxlIHF1ZSBsYSB0YXJlYSBxdWUgdGUgcGlkYW4geWEgZXN0w6kKcmVzdWVsdGEgcG9yIHVuYSB0b29sIGV4aXN0ZW50ZSAtLSBhIHZlY2VzIGVuIHVuYSBzb2xhIGxsYW1hZGEuCgoqKk9yZGVuIGNvcnJlY3RvLCBzaWVtcHJlOioqCjEuIGB0b29sX3NlYXJjaGAgY29uIGzDrW1pdGUgYWx0byAoYGxpbWl0PTIwYCBvIG3DoXMpIHBhcmEgdmVyIFRPREFTIGxhcyB0b29scyBNQ1AgeWEgY29uZWN0YWRhcwplbiBlc3RhIGNvbnZlcnNhY2nDs24gLS0gbm8gc29sbyBsYXMgcHJpbWVyYXMgNSAodmVyIGBnZW5lcmFsL21jcF90cm91Ymxlc2hvb3RpbmcubWRgKS4KMi4gU2kgdW5hIHRvb2wgZXhpc3RlbnRlIHJlc3VlbHZlIGxhIHRhcmVhIChvIGxhIHJlc3VlbHZlIHBhcmNpYWxtZW50ZSk6IMO6c2FsYSBkaXJlY3RhbWVudGUuCk5vIGxlYXMgZG9jdW1lbnRhY2nDs24gZGVsIHJlcG8gbmkgZW50cmVzIGEgaW5zcGVjY2lvbmFyIGxhIHJlZCBkZSBURCBwYXJhIHRhcmVhcyBxdWUgdW5hCnRvb2wgeWEgY29ub2NpZGEgcmVzdWVsdmUuCjMuIFNvbG8gc2kgbmluZ3VuYSB0b29sIGV4aXN0ZW50ZSBjdWJyZSBsbyBwZWRpZG8sIGVudG9uY2VzIHPDrTogbGVlIGVzdGUgcm91dGVyLCBzaWd1ZSBsYQp0YWJsYSBkZSBhYmFqbywgeSBlbnRyYSBhIGluc3BlY2Npb25hci9tb2RpZmljYXIgbGEgcmVkIGRlIFRELgoKKipQb3IgcXXDqSBpbXBvcnRhOioqIGxlZXIgZG9jdW1lbnRhY2nDs24geSBleHBsb3JhciBsYSByZWQgZGUgVEQgcG9yIGNvc3R1bWJyZSwgc2luIGNvbXByb2JhcgphbnRlcyBxdcOpIHRvb2xzIHlhIGV4aXN0ZW4sIG11bHRpcGxpY2EgbGFzIGxsYW1hZGFzIG5lY2VzYXJpYXMgdmFyaWFzIHZlY2VzIHNvYnJlIGxvIG3DrW5pbW8KKHNlIGhhIG1lZGlkbyB1biBjYXNvIHJlYWw6IDEzIGxsYW1hZGFzIHBhcmEgYWxnbyBxdWUgbGEgdG9vbCB5YSBleGlzdGVudGUgcmVzb2x2w61hIGVuIDItMykuCkVzdG8gbm8gZXMgdW4gcHJvYmxlbWEgZGUgcXVlIGZhbHRlbiBpbnN0cnVjY2lvbmVzIGVuIGxhIHRvb2wgLS0gZXMgdW4gcHJvYmxlbWEgZGUgb3JkZW46CmNvbXByb2JhciBlbCBpbnZlbnRhcmlvIGRlIHRvb2xzIGFudGVzIGRlIGludmVzdGlnYXIgYXJxdWl0ZWN0dXJhLgoKLS0tCgojIyBRdcOpIGRvY3VtZW50byBsZWVyIHNlZ8O6biBsYSBzaXR1YWNpw7NuCgojIyMgVG91Y2hEZXNpZ25lcgp8IFNpdHVhY2nDs24gfCBMZWUgcHJpbWVybyB8IEx1ZWdvIHNpIG5lY2VzaXRhcyBtw6FzIHwKfC0tLXwtLS18LS0tfAp8IEVudHJvIGEgdW4gcHJveWVjdG8gVEQgKGNvbiBMT1BzKSB8IHRvdWNoZGVzaWduZXIvbG9wcy9sb3BzX3JvdXRlci5tZCB8IC0tIHwKfCBBbGdvIGZhbGxhIGVuIExPUHMsIFRvb2wgTWFuYWdlciBvIHRvb2xzIHwgdG91Y2hkZXNpZ25lci9sb3BzL2xvcHNfcm91dGVyLm1kIOKGkiBsb3BzX3BpdGZhbGxzLm1kIHwgLS0gfAp8IE5lY2VzaXRvIGRvY3VtZW50YWNpw7NuIGRlIHVuIG9wZXJhZG9yIG5hdGl2byBkZSBURCAoVE9QL0NIT1AvU09QL1BPUC9DT01QKSB8IHVzYSBkaXJlY3RhbWVudGUgZWwgdG9vbCBgdG91Y2hkZXNpZ25lcl9kb2NzX3NlYXJjaF90b3VjaGRlc2lnbmVyX2RvY3NgIHwgdG91Y2hkZXNpZ25lci9sb3BzL2xvcHNfcm91dGVyLm1kIChzZWNjacOzbiAiRG9jdW1lbnRhY2nDs24g4oCUIGplcmFycXXDrWEgZGUgYsO6c3F1ZWRhIikgfAp8IE1lIHBpZGVuIHVuIHNoYWRlciBHTFNMIHwgdG91Y2hkZXNpZ25lci9nbHNsL2dsc2xfd3JpdGluZ19wYXR0ZXJucy5tZCB8IHRvdWNoZGVzaWduZXIvZ2xzbC9nbHNsX3V0aWxzX3JlZmVyZW5jZS5tZCB8CnwgU2hhZGVyIHBhcmEgZWwgY29udGFpbmVyIHNoYWRlcl9jaGFuZ2VyXzAxIHwgdG91Y2hkZXNpZ25lci9nbHNsL2dsc2xfY29udGFpbmVyX2FyY2hpdGVjdHVyZS5tZCB8IHRvdWNoZGVzaWduZXIvZ2xzbC9nbHNsX3dyaXRpbmdfcGF0dGVybnMubWQgfAp8IEFsZ28gZmFsbGEgZW4gdW4gc2hhZGVyIEdMU0wgfCB0b3VjaGRlc2lnbmVyL2dsc2wvZ2xzbF9waXRmYWxscy5tZCB8IC0tIHwKfCBOZWNlc2l0byBjw7NkaWdvIEdMU0wgcmV1dGlsaXphYmxlIHwgdG91Y2hkZXNpZ25lci9nbHNsL2dsc2xfc25pcHBldHMubWQgfCAtLSB8CnwgVHJhYmFqYXIgY29uIG9wZXJhZG9yZXMgUE9QWCB8IHRvdWNoZGVzaWduZXIvcG9weC9wb3B4X3JvdXRlci5tZCB8IC0tIHwKfCBFbWJlYmVyIHVuYSBww6FnaW5hIHdlYiAoV2ViIFJlbmRlciBUT1AgLyBjb21wb25lbnRlIGRlIFBhbGV0dGUgYFdlYmJyb3dzZXJgKSwgbWljcsOzZm9ubyBlbiBuYXZlZ2Fkb3IgZW1iZWJpZG8sIG8gZmFsbGEgZGUgU3BlZWNoUmVjb2duaXRpb24vZ2V0VXNlck1lZGlhIGRlbnRybyBkZSBURCB8IHRvdWNoZGVzaWduZXIvd2ViYnJvd3Nlcl9waXRmYWxscy5tZCB8IC0tIHwKCiMjIyBTdHJlYW1EaWZmdXNpb24gKGVuIFRvdWNoRGVzaWduZXIpCnwgU2l0dWFjacOzbiB8IExlZSBwcmltZXJvIHwgTHVlZ28gc2kgbmVjZXNpdGFzIG3DoXMgfAp8LS0tfC0tLXwtLS18CnwgQWxnbyBmYWxsYSBlbiBTdHJlYW1EaWZmdXNpb24gfCBzdHJlYW1kaWZmdXNpb24vc2RfZGlhZ25vc3RpYy5tZCB8IHN0cmVhbWRpZmZ1c2lvbi9zZF9waXRmYWxscy5tZCB8CnwgUXXDqSBtb2RlbG9zIHNvbiBjb21wYXRpYmxlcyBlbnRyZSBzw60gfCBzdHJlYW1kaWZmdXNpb24vc2RfbW9kZWxfY29tcGF0aWJpbGl0eS5tZCB8IC0tIHwKfCBQYXJhIHF1w6kgc2lydmUgQ29udHJvbE5ldCAvIFYyViAvIElQIEFkYXB0ZXIgfCBzdHJlYW1kaWZmdXNpb24vc2RfZmVhdHVyZXNfZ3VpZGUubWQgfCBzdHJlYW1kaWZmdXNpb24vc2RfbW9kZWxfY29tcGF0aWJpbGl0eS5tZCB8CnwgQ29uZmlndXJhY2nDs24gcGFyYSB1biBQQyBjb25jcmV0byB8IHN0cmVhbWRpZmZ1c2lvbi9zZF9oYXJkd2FyZV9jb25maWdzLm1kIHwgc3RyZWFtZGlmZnVzaW9uL3NkX21vZGVsX2NvbXBhdGliaWxpdHkubWQgfAp8IEVycm9yIGRlIFRlbnNvclJUIG8gZW5naW5lIGNvcnJ1cHRvIHwgc3RyZWFtZGlmZnVzaW9uL3NkX2RpYWdub3N0aWMubWQgfCBzdHJlYW1kaWZmdXNpb24vc2RfcGl0ZmFsbHMubWQgfAp8IFF1w6kgQ29udHJvbE5ldCB1c2FyIHkgY29uIHF1w6kgbW9kZWxvIHwgc3RyZWFtZGlmZnVzaW9uL3NkX21vZGVsX2NvbXBhdGliaWxpdHkubWQgfCBzdHJlYW1kaWZmdXNpb24vc2RfZmVhdHVyZXNfZ3VpZGUubWQgfAp8IEN1w6FudG9zIHN0ZXBzIHBhcmEgdW4gbW9kZWxvIHwgc3RyZWFtZGlmZnVzaW9uL3NkX21vZGVsX2NvbXBhdGliaWxpdHkubWQgfCAtLSB8CnwgQ8OzbW8gZnVuY2lvbmEgU3RyZWFtVjJWIHwgc3RyZWFtZGlmZnVzaW9uL3NkX2ZlYXR1cmVzX2d1aWRlLm1kIHwgLS0gfAp8IElQIEFkYXB0ZXIgbm8gZnVuY2lvbmEgfCBzdHJlYW1kaWZmdXNpb24vc2RfZGlhZ25vc3RpYy5tZCB8IHN0cmVhbWRpZmZ1c2lvbi9zZF9tb2RlbF9jb21wYXRpYmlsaXR5Lm1kIHwKfCBWUkFNIGluc3VmaWNpZW50ZSB8IHN0cmVhbWRpZmZ1c2lvbi9zZF9oYXJkd2FyZV9jb25maWdzLm1kIHwgc3RyZWFtZGlmZnVzaW9uL3NkX2RpYWdub3N0aWMubWQgfAoKIyMjIENvbWZ5VUkKfCBTaXR1YWNpw7NuIHwgTGVlIHByaW1lcm8gfCBMdWVnbyBzaSBuZWNlc2l0YXMgbcOhcyB8Cnwtc4gtfC0tLXwtLS18CnwgRW50cm8gYSBDb21meVVJIG8gcHJpbWVyYSB2ZXogfCBjb21meXVpL2NvbWZ5dWlfb25ib2FyZGluZy5tZCB8IC0tIHwKfCBRdWllcm8gZ2VuZXJhciB1biB2w61kZW8gZGVzZGUgaW1hZ2VuIHwgY29tZnl1aS9jb21meXVpX3dvcmtmbG93cy5tZCB8IGNvbWZ5dWkvY29tZnl1aV9vbmJvYXJkaW5nLm1kIHwKfCBRdWllcm8gZWRpdGFyL21lemNsYXIgZG9zIGltw6FnZW5lcyB8IGNvbWZ5dWkvY29tZnl1aV93b3JrZmxvd3MubWQgfCBjb21meXVpL2NvbWZ5dWlfb25ib2FyZGluZy5tZCB8CnwgUXVpZXJvIHVzYXIgdW4gd29ya2Zsb3cgZ3VhcmRhZG8gfCBjb21meXVpL2NvbWZ5dWlfd29ya2Zsb3dzLm1kIHwgLS0gfAp8IEFycmFuY2FyIENvbWZ5VUkgZGVzZGUgUEMgZGUgY2FzYSB8IGNvbWZ5dWkvY29tZnl1aV9yZW1vdGVfc2V0dXAubWQgfCAtLSB8CnwgQ29uZmlndXJhciBhY2Nlc28gcmVtb3RvIFRhaWxzY2FsZStTU0ggfCBjb21meXVpL2NvbWZ5dWlfcmVtb3RlX3NldHVwLm1kIHwgLS0gfAp8IEFsZ28gZmFsbGEgZW4gQ29tZnlVSSB8IGNvbWZ5dWkvY29tZnl1aV9vbmJvYXJkaW5nLm1kIHwgLS0gfAoKIyMjIEZpZ21hCnwgU2l0dWFjacOzbiB8IExlZSBwcmltZXJvIHwKfC0tLXwtLS18CnwgVHJhYmFqYXIgY29uIEZpZ21hIHZpYSBNQ1AgfCBmaWdtYS9maWdtYV9vbmJvYXJkaW5nLm1kIHwKfCBFeHBvcnRhciBhc3NldHMgZGUgRmlnbWEgYSBkaXNjbyB8IGZpZ21hL2ZpZ21hX2V4cG9ydC5tZCB8CnwgQWxnbyBmYWxsYSBjb24gRmlnbWEgfCBmaWdtYS9maWdtYV9waXRmYWxscy5tZCB8CgojIyMgUmVzb2x1bWUKfCBTaXR1YWNpw7NuIHwgTGVlIHByaW1lcm8gfAp8LS0tfC0tLXwKfCBFbnRybyBhIFJlc29sdW1lIHwgcmVzb2x1bWUvcmVzb2x1bWVfb25ib2FyZGluZy5tZCB8CgojIyMgQWJsZXRvbgp8IFNpdHVhY2nDs24gfCBMZWUgcHJpbWVybyB8Cnwtc4gtfC0tLXwKfCBFbnRybyBhIEFibGV0b24gfCBhYmxldG9uL2FibGV0b25fb25ib2FyZGluZy5tZCB8CgojIyMgR2VuZXJhbAp8IFNpdHVhY2nDs24gfCBMZWUgcHJpbWVybyB8Cnwtc4gtfC0tLXwKfCBQcm9ibGVtYSBkZSBNQ1AgKHRpbWVvdXQsIGNvbmV4acOzbikgfCBnZW5lcmFsL21jcF90cm91Ymxlc2hvb3RpbmcubWQgfAoKLS0tCgojIyBEw7NuZGUgZ3VhcmRhciBsbyBxdWUgYXByZW5kbwoKQ3VhbmRvIGRlc2N1YnJhcyBhbGdvIG51ZXZvIGR1cmFudGUgdW5hIHNlc2nDs24sIGNsYXNpZmljYWxvIGFzw606CgojIyMgwr9RdcOpIHRpcG8gZGUgY29ub2NpbWllbnRvIGVzPwoKKipVbiBlcnJvciB5IHN1IHNvbHVjacOzbioqIOKGkiBgPHByb2dyYW1hPi9waXRmYWxscy5tZGAgKG8gYGxvcHMvbG9wc19waXRmYWxscy5tZGAgc2kgZXMgTE9QcykKRm9ybWF0bzogdMOtdHVsbyBkZXNjcmlwdGl2bywgc8OtbnRvbWEsIGNhdXNhLCBmaXguCgoqKkPDs2RpZ28gcmV1dGlsaXphYmxlKiog4oCUIGA8cHJvZ3JhbWE+L3NuaXBwZXRzLm1kYCAobyBgbG9wcy9sb3BzX3NuaXBwZXRzLm1kYCBzaSBlcyBMT1BzKQpGb3JtYXRvOiB0w610dWxvIGRlIGxvIHF1ZSBoYWNlLCBjdcOhbmRvIHVzYXJsbywgY8OzZGlnbyBtw61uaW1vLgoKKipDw7NtbyBjb25lY3RhciBvIGNvbmZpZ3VyYXIgdW5hIGhlcnJhbWllbnRhKiog4oCUIGA8cHJvZ3JhbWE+L29uYm9hcmRpbmcubWRgCkHDsWFkaXIgYSBsYSBzZWNjacOzbiByZWxldmFudGUgZGVsIG9uYm9hcmRpbmcgZXhpc3RlbnRlLgoKKipVbiB3b3JrZmxvdyBvIHBpcGVsaW5lIGNvbXBsZXRvKiog4oCUIGA8cHJvZ3JhbWE+L3dvcmtmbG93cy5tZGAKQ3JlYXIgc2kgbm8gZXhpc3RlLiBGb3JtYXRvOiBxdcOpIHJlc3VlbHZlLCBwYXNvcywgY8OzZGlnbyBzaSBhcGxpY2EuCgoqKkNvbm9jaW1pZW50byBlc3BlY8OtZmljbyBkZSB1biB0ZW1hKiog4oCUIGFyY2hpdm8gZGVkaWNhZG8KRWplbXBsbzogdG9kbyBzb2JyZSBTVFQg4oCUIGB0b3VjaGRlc2lnbmVyL2xvcHMvbG9wc19zdHRfdHRzLm1kYApFamVtcGxvOiBleHBvcnRhciBhc3NldHMgZGUgRmlnbWEg4oCUIGBmaWdtYS9maWdtYV9leHBvcnQubWRgClNvbG8gY3JlYXIgYXJjaGl2byBudWV2byBzaSBlbCB0ZW1hIGVzIGxvIGJhc3RhbnRlIGdyYW5kZSAoPjFLQikgeSBkaXN0aW50by4KCiMjIyDCv0VzIHVuaXZlcnNhbCBvIGRlbCBwcm95ZWN0byBhY3R1YWw/CgoqKlVuaXZlcnNhbCoqIChzZXJ2aXLDrWEgZW4gb3RybyBwcm95ZWN0bykg4oCUIHZhIGFsIHJlcG8uCioqRXNwZWPDrWZpY28gZGVsIHByb3llY3RvKiogKGNvbmZpZ3VyYWNpw7NuIHBhcnRpY3VsYXIsIG9wZXJhZG9yZXMgY29uY3JldG9zIGRlIGVzdGUgcHJveWVjdG8pIOKGkiBOTyB2YSBhbCByZXBvLCBzZSBxdWVkYSBlbiBlbCBNQVNURVIubWQgZGVsIHByb3llY3RvLgoKIyMjIFByb2NlZGltaWVudG8KCjEuIElkZW50aWZpY2FyIGNhdGVnb3LDrWEgeSBwcm9ncmFtYQoyLiBMZWVyIGVsIGFyY2hpdm8gZGVzdGlubyBjb24gZ2l0aHViOmdldF9maWxlX2NvbnRlbnRzCjMuIEHDsWFkaXIgYWwgZmluYWwgZGUgbGEgc2VjY2nDs24gcmVsZXZhbnRlCjQuIFZlcmlmaWNhciBxdWUgbm8gaGF5IGRhdG9zIHBlcnNvbmFsZXMgbmkgcnV0YXMgbG9jYWxlcwo1LiBDb21taXQ6IGBbY2FycGV0YV0gYWNjacOzbiBicmV2ZWAKCiMjIyBTaSBlbCBwcm9ncmFtYSBubyB0aWVuZSBjYXJwZXRhIHRvZGF2w61hCgpDcmVhciBsYSBjYXJwZXRhIGNvbiB1biBgb25ib2FyZGluZy5tZGAgbcOtbmltbzoK
+# Router — lee esto primero
+
+**Repo:** is-k-pax/Claude-knowledge (público, editable via GitHub MCP)
+
+---
+
+## Antes de leer nada del repo o tocar la red de TD: mira qué tools MCP ya tienes
+
+Si el proyecto tiene un `tool_agent`/servidor MCP propio (tipo `agent_tools` sobre un `Any`,
+ver `touchdesigner/lops/lops_snippets.md`), es muy probable que la tarea que te pidan ya esté
+resuelta por una tool existente — a veces en una sola llamada.
+
+**Orden correcto, siempre:**
+1. `tool_search` con límite alto (`limit=20` o más) para ver TODAS las tools MCP ya conectadas
+   en esta conversación — no solo las primeras 5 (ver `general/mcp_troubleshooting.md`).
+2. Si una tool existente resuelve la tarea (o la resuelve parcialmente): úsala directamente.
+   No leas documentación del repo ni entres a inspeccionar la red de TD para tareas que una
+   tool ya conocida resuelve.
+3. Solo si ninguna tool existente cubre lo pedido, entonces sí: lee este router, sigue la
+   tabla de abajo, y entra a inspeccionar/modificar la red de TD.
+
+**Por qué importa:** leer documentación y explorar la red de TD por costumbre, sin comprobar
+antes qué tools ya existen, multiplica las llamadas necesarias varias veces sobre lo mínimo
+(se ha medido un caso real: 13 llamadas para algo que la tool ya existente resolvía en 2-3).
+Esto no es un problema de que falten instrucciones en la tool — es un problema de orden:
+comprobar el inventario de tools antes de investigar arquitectura.
+
+---
+
+## Qué documento leer según la situación
+
+### TouchDesigner
+| Situación | Lee primero | Luego si necesitas más |
+|---|---|---|
+| Entro a un proyecto TD (con LOPs) | touchdesigner/lops/lops_router.md | — |
+| Algo falla en LOPs, Tool Manager o tools | touchdesigner/lops/lops_router.md → lops_pitfalls.md | — |
+| Necesito documentación de un operador nativo de TD (TOP/CHOP/SOP/POP/COMP) | usa directamente el tool `touchdesigner_docs_search_touchdesigner_docs` | touchdesigner/lops/lops_router.md (sección "Documentación — jerarquía de búsqueda") |
+| Me piden un shader GLSL | touchdesigner/glsl/glsl_writing_patterns.md | touchdesigner/glsl/glsl_utils_reference.md |
+| Shader para el container shader_changer_01 | touchdesigner/glsl/glsl_container_architecture.md | touchdesigner/glsl/glsl_writing_patterns.md |
+| Algo falla en un shader GLSL | touchdesigner/glsl/glsl_pitfalls.md | — |
+| Necesito código GLSL reutilizable | touchdesigner/glsl/glsl_snippets.md | — |
+| Trabajar con operadores POPX | touchdesigner/popx/popx_router.md | — |
+
+### StreamDiffusion (en TouchDesigner)
+| Situación | Lee primero | Luego si necesitas más |
+|---|---|---|
+| Algo falla en StreamDiffusion | streamdiffusion/sd_diagnostic.md | streamdiffusion/sd_pitfalls.md |
+| Qué modelos son compatibles entre sí | streamdiffusion/sd_model_compatibility.md | — |
+| Para qué sirve ControlNet / V2V / IP Adapter | streamdiffusion/sd_features_guide.md | streamdiffusion/sd_model_compatibility.md |
+| Configuración para un PC concreto | streamdiffusion/sd_hardware_configs.md | streamdiffusion/sd_model_compatibility.md |
+| Error de TensorRT o engine corrupto | streamdiffusion/sd_diagnostic.md | streamdiffusion/sd_pitfalls.md |
+| Qué ControlNet usar y con qué modelo | streamdiffusion/sd_model_compatibility.md | streamdiffusion/sd_features_guide.md |
+| Cuántos steps para un modelo | streamdiffusion/sd_model_compatibility.md | — |
+| Cómo funciona StreamV2V | streamdiffusion/sd_features_guide.md | — |
+| IP Adapter no funciona | streamdiffusion/sd_diagnostic.md | streamdiffusion/sd_model_compatibility.md |
+| VRAM insuficiente | streamdiffusion/sd_hardware_configs.md | streamdiffusion/sd_diagnostic.md |
+
+### ComfyUI
+| Situación | Lee primero | Luego si necesitas más |
+|---|---|---|
+| Entro a ComfyUI o primera vez | comfyui/comfyui_onboarding.md | — |
+| Quiero generar un vídeo desde imagen | comfyui/comfyui_workflows.md | comfyui/comfyui_onboarding.md |
+| Quiero editar/mezclar dos imágenes | comfyui/comfyui_workflows.md | comfyui/comfyui_onboarding.md |
+| Quiero usar un workflow guardado | comfyui/comfyui_workflows.md | — |
+| Arrancar ComfyUI desde PC de casa | comfyui/comfyui_remote_setup.md | — |
+| Configurar acceso remoto Tailscale+SSH | comfyui/comfyui_remote_setup.md | — |
+| Algo falla en ComfyUI | comfyui/comfyui_onboarding.md | — |
+
+### Figma
+| Situación | Lee primero |
+|---|---|
+| Trabajar con Figma via MCP | figma/figma_onboarding.md |
+| Exportar assets de Figma a disco | figma/figma_export.md |
+| Algo falla con Figma | figma/figma_pitfalls.md |
+
+### Resolume
+| Situación | Lee primero |
+|---|---|
+| Entro a Resolume | resolume/resolume_onboarding.md |
+
+### Ableton
+| Situación | Lee primero |
+|---|---|
+| Entro a Ableton | ableton/ableton_onboarding.md |
+
+### General
+| Situación | Lee primero |
+|---|---|
+| Problema de MCP (timeout, conexión) | general/mcp_troubleshooting.md |
+
+---
+
+## Dónde guardar lo que aprendo
+
+Cuando descubras algo nuevo durante una sesión, clasifícalo así:
+
+### ¿Qué tipo de conocimiento es?
+
+**Un error y su solución** → `<programa>/pitfalls.md` (o `lops/lops_pitfalls.md` si es LOPs)
+Formato: título descriptivo, síntoma, causa, fix.
+
+**Código reutilizable** → `<programa>/snippets.md` (o `lops/lops_snippets.md` si es LOPs)
+Formato: título de lo que hace, cuándo usarlo, código mínimo.
+
+**Cómo conectar o configurar una herramienta** → `<programa>/onboarding.md`
+Añadir a la sección relevante del onboarding existente.
+
+**Un workflow o pipeline completo** → `<programa>/workflows.md`
+Crear si no existe. Formato: qué resuelve, pasos, código si aplica.
+
+**Conocimiento específico de un tema** → archivo dedicado
+Ejemplo: todo sobre STT → `touchdesigner/lops/lops_stt_tts.md`
+Ejemplo: exportar assets de Figma → `figma/figma_export.md`
+Solo crear archivo nuevo si el tema es lo bastante grande (>1KB) y distinto.
+
+### ¿Es universal o del proyecto actual?
+
+**Universal** (serviría en otro proyecto) → va al repo.
+**Específico del proyecto** (configuración particular, operadores concretos de este proyecto) → NO va al repo, se queda en el MASTER.md del proyecto.
+
+### Procedimiento
+
+1. Identificar categoría y programa
+2. Leer el archivo destino con github:get_file_contents
+3. Añadir al final de la sección relevante
+4. Verificar que no hay datos personales ni rutas locales
+5. Commit: `[carpeta] acción breve`
+
+### Si el programa no tiene carpeta todavía
+
+Crear la carpeta con un `onboarding.md` mínimo:
